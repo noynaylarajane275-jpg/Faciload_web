@@ -2,6 +2,9 @@
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
+REM --- Allow: share.bat /selftest  (verify readiness without opening a tunnel) ---
+if "%~1"=="/selftest" goto :selftest
+
 echo.
 echo ==========================================================
 echo   FACILOAD - temporary remote share
@@ -97,17 +100,84 @@ if not defined READY (
 )
 echo [share] Server is serving the web app - ready to share.
 
-REM --- 5) Open the tunnel and print the shareable URL --------------------------
+REM --- 5) Open the tunnel and print/save the shareable URL ---------------------
+set "SHARE_LOG=%~dp0share-tunnel.log"
+set "SHARE_LINK=%~dp0share-link.txt"
+set "SHARE_LINK_TS=%~dp0share-link-%date:~-4,4%%date:~-10,2%%date:~-7,2%-%time:~0,2%%time:~3,2%%time:~6,2%.txt"
+set "SHARE_LINK_TS=%SHARE_LINK_TS: =%"
 echo.
 echo [share] Starting the Cloudflare tunnel - the URL below is public.
 echo [share] Anyone with the link can log in with the dev accounts, so keep
 echo [share] this window open only while you need it.
+echo [share] The full tunnel log is saved to: %SHARE_LOG%
 echo.
-cloudflared tunnel --url http://localhost:4000
+
+REM Stream cloudflared output to the console (live URL) AND to the log file, so
+REM the link survives after this window is closed. PowerShell Tee-Object does
+REM exactly that - one line, no extra dependencies.
+powershell -NoProfile -Command "cloudflared tunnel --url http://localhost:4000 2>&1 | Tee-Object -FilePath '%SHARE_LOG%'"
+
+REM --- 5b) Extract the public link from the tunnel log and save it -------------
+if exist "%SHARE_LOG%" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\extract-tunnel-link.ps1" -Log "%SHARE_LOG%" -Out "%SHARE_LINK%" >nul 2>&1
+)
+if exist "%SHARE_LINK%" (
+    for /f "delims=" %%a in ("%SHARE_LINK%") do set "SHARE_URL=%%a"
+    copy /y "%SHARE_LINK%" "%SHARE_LINK_TS%" >nul
+    echo.
+    echo ==========================================================
+    echo   SHARE LINK: %SHARE_URL%
+    echo   ^(saved to %SHARE_LINK% and timestamped copy %SHARE_LINK_TS%^)
+    echo ==========================================================
+) else (
+    echo.
+    echo [share] WARNING: could not parse the public URL from %SHARE_LOG%.
+    echo [share] Open %SHARE_LOG% and copy the https://*.trycloudflare.com URL by hand.
+)
 
 echo.
 echo [share] Tunnel closed. Close the "FACILOAD Share Server" window to stop.
 pause
+exit /b 0
+
+REM ================================================================================
+REM :selftest - verify every precondition for issuing a link, without opening a
+REM tunnel. Exit 0 = READY (share.bat will issue a link), exit 1 = NOT READY.
+REM ================================================================================
+:selftest
+echo.
+echo ==========================================================
+echo   FACILOAD - share readiness self-test
+echo ==========================================================
+set "FAILS=0"
+
+echo [selftest] checking: node on PATH
+where node >nul 2>&1
+if errorlevel 1 (echo [selftest]   FAIL: node on PATH & set /a FAILS+=1) else echo [selftest]   ok: node on PATH
+
+echo [selftest] checking: cloudflared on PATH
+where cloudflared >nul 2>&1
+if errorlevel 1 (echo [selftest]   FAIL: cloudflared on PATH & set /a FAILS+=1) else echo [selftest]   ok: cloudflared on PATH
+
+echo [selftest] checking: curl on PATH
+where curl >nul 2>&1
+if errorlevel 1 (echo [selftest]   FAIL: curl on PATH & set /a FAILS+=1) else echo [selftest]   ok: curl on PATH
+
+echo [selftest] checking: npm dependencies installed
+if exist node_modules\.package-lock.json (echo [selftest]   ok: npm dependencies installed) else (echo [selftest]   FAIL: npm dependencies installed & set /a FAILS+=1)
+
+echo [selftest] checking: database or migrations present
+if exist apps\api\prisma\dev.db (echo [selftest]   ok: database or migrations present) else (if exist apps\api\prisma\migrations\ (echo [selftest]   ok: database or migrations present) else (echo [selftest]   FAIL: database or migrations present & set /a FAILS+=1))
+
+echo.
+if %FAILS% equ 0 goto :selftest_ready
+echo [selftest] %FAILS% checks failed - a link is NOT guaranteed yet.
+echo [selftest] Fix the items above, then re-run this self-test.
+exit /b 1
+:selftest_ready
+echo [selftest] ALL CHECKS PASSED - share.bat is ready to issue a link.
+echo [selftest] Run share.bat normally; it will build, serve, poll, and open
+echo [selftest] the tunnel only once http://localhost:4000/ answers 200.
 exit /b 0
 
 :fail

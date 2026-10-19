@@ -254,6 +254,53 @@ describe('ScheduleSlot API — placement + conflict detection', () => {
     expect(second.status).toBe(201);
   });
 
+  it('rejects any placement touching the 12:00 PM – 1:00 PM lunch break', async () => {
+    const fixtures = await seedFixtures();
+    // Inside the window.
+    const inside = await place({
+      workload_assignment_id: fixtures.assignmentAId,
+      room_id: fixtures.roomAId,
+      session_type: 'LECTURE',
+      day_of_week: 'MON',
+      start_time: '12:00',
+      end_time: '13:00',
+    });
+    expect(inside.status).toBe(400);
+    expect(inside.body.error.message).toContain('Lunch break');
+
+    // Straddling the window (starts before, ends after).
+    const straddle = await place({
+      workload_assignment_id: fixtures.assignmentAId,
+      room_id: fixtures.roomAId,
+      session_type: 'LECTURE',
+      day_of_week: 'TUE',
+      start_time: '11:30',
+      end_time: '12:30',
+    });
+    expect(straddle.status).toBe(400);
+    expect(straddle.body.error.message).toContain('Lunch break');
+
+    // Adjacent blocks stay legal: ends exactly at noon, starts exactly at 1 PM.
+    const before = await place({
+      workload_assignment_id: fixtures.assignmentAId,
+      room_id: fixtures.roomAId,
+      session_type: 'LECTURE',
+      day_of_week: 'WED',
+      start_time: '11:00',
+      end_time: '12:00',
+    });
+    expect(before.status).toBe(201);
+    const after = await place({
+      workload_assignment_id: fixtures.assignmentSameFacultyId,
+      room_id: fixtures.roomBId,
+      session_type: 'LECTURE',
+      day_of_week: 'WED',
+      start_time: '13:00',
+      end_time: '14:00',
+    });
+    expect(after.status).toBe(201);
+  });
+
   it('detects an overlapping faculty booking and writes nothing', async () => {
     const fixtures = await seedFixtures();
     const first = await place({

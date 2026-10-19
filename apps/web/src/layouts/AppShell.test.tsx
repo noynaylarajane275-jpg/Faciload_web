@@ -40,29 +40,33 @@ describe('AppShell sidebar (role-scoped)', () => {
   it('renders Chair nav items', () => {
     renderAppAt('/dashboard', 'CHAIR');
     const items = [
-      'Dashboard', 'Schedule', 'Workload Assignment', 'Faculty', 'Faculty Management', 'Subjects',
-      'Rooms', 'Reports', 'My Workload', 'Account Settings',
+      'Dashboard', 'Schedule', 'Section Schedule', 'Faculty Schedule', 'Room Schedule',
+      'Workload Assignment', 'Faculty Management', 'Subjects',
+      'Rooms', 'Reports', 'Account Settings',
     ];
     for (const item of items) {
       expect(screen.getByRole('link', { name: item })).toBeInTheDocument();
     }
+    // Phase 1: legacy entries are redirects, not nav items.
+    expect(screen.queryByRole('link', { name: 'Faculty' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'My Workload' })).not.toBeInTheDocument();
     expect(screen.getByText(/user@faciload.local/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /log out/i })).toBeInTheDocument();
   });
 
   it('renders Faculty nav items only', () => {
     renderAppAt('/dashboard', 'FACULTY');
-    for (const item of ['Dashboard', 'Schedule', 'My Workload', 'Account Settings']) {
+    for (const item of ['Dashboard', 'Schedule', 'Faculty Schedule', 'Account Settings']) {
       expect(screen.getByRole('link', { name: item })).toBeInTheDocument();
     }
-    for (const item of ['Workload Assignment', 'Faculty', 'Faculty Management', 'Subjects', 'Rooms', 'Reports']) {
+    for (const item of ['Workload Assignment', 'Faculty Management', 'Subjects', 'Rooms', 'Reports']) {
       expect(screen.queryByRole('link', { name: item })).not.toBeInTheDocument();
     }
   });
 
   it('renders Academic Admin nav items', () => {
     renderAppAt('/dashboard', 'ACADEMIC_ADMIN');
-    for (const item of ['Dashboard', 'Schedule', 'Workload Assignment', 'Faculty', 'Faculty Management', 'Subjects', 'Rooms', 'Reports', 'Account Settings']) {
+    for (const item of ['Dashboard', 'Schedule', 'Workload Assignment', 'Faculty Management', 'Subjects', 'Rooms', 'Reports', 'Account Settings']) {
       expect(screen.getByRole('link', { name: item })).toBeInTheDocument();
     }
     expect(screen.queryByRole('link', { name: 'My Workload' })).not.toBeInTheDocument();

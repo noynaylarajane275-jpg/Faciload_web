@@ -97,16 +97,14 @@ interface ModalState {
 const SEARCH_DEBOUNCE_MS = 300;
 
 /**
- * Shared faculty directory. `manage = false` renders the view-only Faculty
- * module (browse records + per-member workload, zero mutation controls).
- * `manage = true` renders Faculty Management (create/edit/delete + opt-in
- * login provisioning); those actions still require the CHAIR role, exactly
- * as before the split.
+ * Shared faculty directory. Phase 1: single management-capable directory.
+ * Read-only vs write is decided by role inside the component
+ * (`canEdit = user?.role === 'CHAIR'`), not by which route rendered it.
  */
-function FacultyDirectory({ manage }: { manage: boolean }): JSX.Element {
+function FacultyDirectory(): JSX.Element {
   const user = useAuthStore((s) => s.user);
   const { pushToast } = useToast();
-  const canEdit = manage && user?.role === 'CHAIR';
+  const canEdit = user?.role === 'CHAIR';
 
   const [result, setResult] = useState<FacultyListResult | null>(null);
   const [status, setStatus] = useState<'loading' | 'error' | 'ready'>('loading');
@@ -353,12 +351,10 @@ function FacultyDirectory({ manage }: { manage: boolean }): JSX.Element {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 id="faculty-title" className="text-2xl font-semibold text-primary-dark">
-            {manage ? 'Faculty Management' : 'Faculty'}
+            Faculty Management
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {manage
-              ? 'Create faculty records, update details, and manage linked login accounts.'
-              : 'Browse faculty records, employment details, and per-member workload at a glance.'}
+            Create faculty records, update details, and manage linked login accounts.
           </p>
         </div>
         {canEdit ? (
@@ -826,14 +822,14 @@ function FacultyDirectory({ manage }: { manage: boolean }): JSX.Element {
   );
 }
 
-/** View-only Faculty module: browse records, search, and per-member workload. */
+/** Single Faculty Management directory (role-gated write controls). */
 export function FacultyPage(): JSX.Element {
-  return <FacultyDirectory manage={false} />;
+  return <FacultyDirectory />;
 }
 
-/** Faculty Management module: create/edit/delete + opt-in login provisioning (CHAIR only). */
+/** Kept export for route/tests compat: same single directory (manage mode). */
 export function FacultyManagementPage(): JSX.Element {
-  return <FacultyDirectory manage={true} />;
+  return <FacultyDirectory />;
 }
 
 function sortHeaderState(column: FacultySortBy, sort: SortState): 'ascending' | 'descending' | 'none' {

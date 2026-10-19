@@ -5,12 +5,11 @@ import { SessionBootstrap } from './components/auth/SessionBootstrap';
 import { AppShell } from './layouts/AppShell';
 import { DashboardPage } from './pages/DashboardPage';
 import { SubjectsPage } from './pages/SubjectsPage';
-import { FacultyPage, FacultyManagementPage } from './pages/FacultyPage';
+import { FacultyPage } from './pages/FacultyPage';
 import { SchedulePage } from './pages/Schedule/SchedulePage';
 import { SectionSchedulePage } from './pages/Views/SectionSchedulePage';
 import { FacultySchedulePage } from './pages/Views/FacultySchedulePage';
 import { RoomSchedulePage } from './pages/Views/RoomSchedulePage';
-import { WorkloadPage } from './pages/WorkloadPage';
 import { WorkloadAssignmentPage } from './pages/WorkloadAssignment/WorkloadAssignmentPage';
 import { RoomsPage } from './pages/RoomsPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -23,9 +22,6 @@ import type { AuthRole } from './store/auth.store';
 
 /** Reports: Chair + Academic Admin (ui-ux.md §4). */
 const REPORTS_ROLES: AuthRole[] = ['CHAIR', 'ACADEMIC_ADMIN'];
-
-/** My Workload: Chair + Faculty. */
-const MY_WORKLOAD_ROLES: AuthRole[] = ['CHAIR', 'FACULTY'];
 
 export function App(): JSX.Element {
   return (
@@ -90,7 +86,7 @@ export function App(): JSX.Element {
               path="/workload"
               element={
                 <RequireAuth allowedRoles={['CHAIR', 'FACULTY']}>
-                  <WorkloadPage />
+                  <Navigate to="/views/faculty" replace />
                 </RequireAuth>
               }
             />
@@ -128,12 +124,15 @@ export function App(): JSX.Element {
             />
             {/* Faculty Management — the write side of the faculty module
                 (create / edit / delete + opt-in login accounts). Kept as its
-                own route so /faculty stays strictly read-only. */}
+                own route so /faculty stays strictly read-only. */
+            /* Phase 1: single /faculty route renders the directory; management
+               controls are role-gated inside the component (CHAIR-only), so the
+               separate /faculty-management path redirects here for bookmarks. */}
             <Route
               path="/faculty-management"
               element={
                 <RequireAuth allowedRoles={MANAGEMENT_ROLES}>
-                  <FacultyManagementPage />
+                  <Navigate to="/faculty" replace />
                 </RequireAuth>
               }
             />

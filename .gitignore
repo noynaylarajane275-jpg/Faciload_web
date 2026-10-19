@@ -13,6 +13,11 @@ build/
 apps/api/.env
 apps/web/.env
 
+# share.bat runtime artifacts (one per tunnel session, per user)
+share-link.txt
+share-link-*.txt
+share-tunnel.log
+
 # Prisma (generated client only — migrations are committed)
 apps/api/node_modules/.prisma
 

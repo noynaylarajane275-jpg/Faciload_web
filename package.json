@@ -13,7 +13,9 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "migrate:dev": "npm run migrate:dev --workspace apps/api",
-    "seed": "npm run seed --workspace apps/api"
+    "seed": "npm run seed --workspace apps/api",
+    "share": "share.bat",
+    "share:selftest": "share.bat /selftest"
   },
   "engines": {
     "node": ">=20"

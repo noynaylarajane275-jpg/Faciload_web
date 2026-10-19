@@ -94,3 +94,34 @@ Notes and caveats:
   real deployment.
 - `apps/web/dist` and `WEB_DIST` are only used for this sharing flow; normal
   `npm run dev` is unaffected.
+
+### Link persistence + self-test
+
+Every `share.bat` tap leaves a retrievable copy of the public link:
+
+- `share-link.txt` — the latest tunnel URL (overwritten each tap).
+- `share-link-<timestamp>.txt` — a timestamped copy of each session's link.
+- `share-tunnel.log` — the full cloudflared log for that session.
+
+These are gitignored (per-user, per-session artifacts). If URL parsing ever
+fails, open `share-tunnel.log` and copy the `https://*.trycloudflare.com` URL
+by hand.
+
+Before sharing, you can verify every precondition without opening a tunnel:
+
+```powershell
+npm run share:selftest   # or: share.bat /selftest
+```
+
+It checks `node`, `cloudflared`, `curl`, npm dependencies, and the database/
+migrations, then reports READY or NOT READY with exit code 0/1. With `-Full`
+it also rehearses the build + serve + readiness poll:
+
+```powershell
+.\scripts\test-share-readiness.ps1 -Full
+```
+
+`cloudflared` is installed automatically via winget the first time you run
+`share.bat` (one-time, free, no Cloudflare account). If winget isn't
+available, install it manually from
+https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/

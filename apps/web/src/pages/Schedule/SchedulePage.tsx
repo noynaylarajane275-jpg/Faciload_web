@@ -82,9 +82,12 @@ import {
   GRID_HEIGHT,
   HALF_HOUR_HEIGHT,
   HOUR_HEIGHT,
+  LUNCH_BREAK_END_MINUTES,
+  LUNCH_BREAK_START_MINUTES,
   cellId,
   formatTime12h,
   halfHourRows,
+  overlapsLunchBreak,
   parseCellId,
   placementRange,
   previewCellIds,
@@ -181,6 +184,14 @@ export function overlayHeight(info: DragInfo): number {
 
 export function sessionSessionLabel(type: SessionType): string {
   return type === 'LECTURE' ? 'LEC' : 'LAB';
+}
+
+/** Lunch-break drop guard shared by new placements and moves. */
+export const LUNCH_BLOCK_MESSAGE =
+  'Lunch break is reserved (12:00 PM – 1:00 PM) — pick a slot that ends by 12:00 PM or starts at 1:00 PM.';
+
+export function lunchBlocked(placement: { start_time: string; end_time: string }): boolean {
+  return overlapsLunchBreak(timeToMinutes(placement.start_time), timeToMinutes(placement.end_time));
 }
 
 /** A 409 caught mid-placement, waiting for the Chair to override or cancel. */
@@ -475,6 +486,11 @@ export function SchedulePage(): JSX.Element {
       // Exactly the picker's selected duration — not the full remaining chunk.
       // The page-level selected room IS the drop target.
       const placement = chunkPlacement(info, cell);
+      if (lunchBlocked(placement)) {
+        pushToast('error', LUNCH_BLOCK_MESSAGE);
+        setShakeCell(target);
+        return;
+      }
       await placeNew(
         info.assignment,
         { ...placement, room_id: selectedRoomId || null },
@@ -484,9 +500,15 @@ export function SchedulePage(): JSX.Element {
       const durationHours =
         (timeToMinutes(info.slot.end_time) - timeToMinutes(info.slot.start_time)) / 60;
       const { start, end } = placementRange(cell.hour, cell.offset, durationHours);
+      const placement = { day_of_week: cell.day, start_time: start, end_time: end, room_id: info.slot.room_id, session_type: info.slot.session_type };
+      if (lunchBlocked(placement)) {
+        pushToast('error', LUNCH_BLOCK_MESSAGE);
+        setShakeCell(target);
+        return;
+      }
       await moveSlot(
         info.slot,
-        { day_of_week: cell.day, start_time: start, end_time: end, room_id: info.slot.room_id, session_type: info.slot.session_type },
+        placement,
         target,
       );
     }
@@ -865,7 +887,7 @@ export function SchedulePage(): JSX.Element {
           with top-right actions, then a separate filters-only card) so the Chair
           workspace reads differently. Actions relocate to the far right of the
           unified bar, grouped as a segmented cluster after the scope filters. */}
-      <div className="sticky top-0 z-20 rounded-2xl border border-slate-200 bg-white/90 px-4 py-2.5 shadow-sm backdrop-blur">
+      <div className="sticky top-0 z-20 rounded-2xl border border-slate-200 bg-white/90 px-4 py-2.5 shadow-sm backdrop-blur print:static print:border-0 print:bg-white print:shadow-none">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
           <div className="flex items-center gap-2.5">
             <span
@@ -937,7 +959,7 @@ export function SchedulePage(): JSX.Element {
           </div>
 
           {canEdit ? (
-            <div className="ml-auto flex items-center gap-2 border-l border-slate-200 pl-4">
+            <div className="ml-auto flex items-center gap-2 border-l border-slate-200 pl-4 print:hidden">
               <button
                 type="button"
                 onClick={() => void handleExport()}
@@ -950,7 +972,21 @@ export function SchedulePage(): JSX.Element {
                   <path d="m7 10 5 5 5-5" />
                   <path d="M5 21h14" />
                 </svg>
-                {exporting ? 'Exporting…' : 'Export'}
+                {exporting ? 'Exporting…' : 'Export Report'}
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                disabled={!selectedRoomId}
+                title="Print Classroom Utilization (landscape, lunch break included)"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 9V2h12v7" />
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                  <rect width="12" height="8" x="6" y="14" />
+                </svg>
+                Print Classroom Utilization
               </button>
               <button
                 type="button"
@@ -969,11 +1005,41 @@ export function SchedulePage(): JSX.Element {
           ) : null}
         </div>
 
-        <p className="mt-1.5 max-w-3xl text-xs text-slate-500">
+        <p className="mt-1.5 max-w-3xl text-xs text-slate-500 print:hidden">
           {selectedRoom
             ? `Scheduling ${selectedRoom.name} for ${term ? term.label : '…'}. Drag a class from the panel onto the grid — Tab + Space works too.`
             : `Scheduling for ${term ? term.label : '…'} — select a room to begin.`}
         </p>
+        {/* Excel-style report header (screen + print): mirrors the Classroom
+            Utilization sheet — title, term, and the room/program context the
+            export writes. */}
+        {selectedRoomId ? (
+          <div className="cu-report-head mb-3 border border-black bg-white">
+            <p className="border-b border-black py-1 text-center text-lg font-bold tracking-wide text-black">
+              CLASSROOM UTILIZATION
+            </p>
+            <p className="border-b border-black py-0.5 text-center text-xs font-semibold text-black">
+              {term ? term.label : 'Active term'}
+            </p>
+            <div className="grid grid-cols-2 text-[11px] text-black">
+              <p className="border-r border-black px-2 py-0.5">
+                <span className="font-bold">College:</span> College of Technology and Engineering
+              </p>
+              <p className="px-2 py-0.5">
+                <span className="font-bold">Program:</span> {programLabel}
+              </p>
+              <p className="border-r border-t border-black px-2 py-0.5">
+                <span className="font-bold">Room:</span> {selectedRoom ? selectedRoom.name : '—'}
+              </p>
+              <p className="border-t border-black px-2 py-0.5">
+                <span className="font-bold">Major / Yr-Sec:</span>{' '}
+                {filterSectionId
+                  ? (sections.find((s) => s.id === filterSectionId)?.label ?? '—')
+                  : 'All sections'}
+              </p>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {termStatus === 'ready' && !selectedTermId ? (
@@ -1035,7 +1101,7 @@ export function SchedulePage(): JSX.Element {
             {/* Right rail: unassigned classes. The page-level room selector is
                 the drop target — no second room picker. Reversed vs. the old
                 layout so the week grid owns the primary (left) area. */}
-            <aside className="w-72 shrink-0 space-y-3 glass-card rounded-2xl p-4 shadow-sm">
+            <aside className="w-72 shrink-0 space-y-3 glass-card rounded-2xl p-4 shadow-sm print:hidden">
               <div>
                 <h2 className="text-sm font-semibold text-ink">Unassigned classes</h2>
                 <p className="text-xs text-ink/50">{term ? term.label : 'Loading term…'}</p>
@@ -1073,10 +1139,11 @@ export function SchedulePage(): JSX.Element {
               ) : null}
             </aside>
 
-            {/* Time-gutter + day columns. Each day column is a droppable hour
-                stack; placed blocks are absolutely positioned by start/end
-                time (faciload.html block math). */}
-            <div className="flex min-w-0 flex-1 overflow-x-auto glass-card rounded-2xl p-4 shadow-sm">
+            {/* Time-gutter + day columns. Excel Classroom Utilization styling:
+                light-green header band, white cells, thin dark borders, black
+                text — the editing chrome (DnD, filters, sidebar) stays, but the
+                grid itself reads like the printed form. */}
+            <div className="cu-grid flex min-w-0 flex-1 overflow-x-auto rounded-none border border-black bg-white p-0 shadow-none">
               {/* `flex-1` on the inner row matters: without an explicit width the
                   flex row collapses to its content and the day columns stop
                   filling the panel, leaving dead space on the right. */}
@@ -1088,11 +1155,14 @@ export function SchedulePage(): JSX.Element {
                     with their rows. Height must match the grid cells exactly. */}
                 {/* Wide enough for the longest label, the 11:30 AM - 12:00 PM row,
                     which is the one range that carries a marker on both ends. */}
-                <div className="w-[124px] shrink-0 pt-7 pr-3" aria-hidden="true">
+                <div className="w-[132px] shrink-0 border-r border-black bg-white pr-2" aria-hidden="true">
+                  <div className="cu-day-head flex h-7 items-center justify-end border-b border-black bg-[#9BBB59] px-2 text-[11px] font-bold text-black">
+                    TIME
+                  </div>
                   {rows.map((row) => (
                     <div
                       key={row.key}
-                      className="flex items-center justify-end whitespace-nowrap text-right font-mono text-[11px] leading-none tabular-nums text-ink/70"
+                      className="cu-time-cell flex items-center justify-end whitespace-nowrap border-b border-black text-right font-mono text-[10px] leading-none tabular-nums text-black"
                       style={{ height: HALF_HOUR_HEIGHT }}
                     >
                       {rangeLabel(row)}
@@ -1117,16 +1187,20 @@ export function SchedulePage(): JSX.Element {
                         }
                       }}
                     >
-                      <div className="pb-1 text-center text-xs font-semibold uppercase tracking-wide text-ink/60">
+                      <div className="cu-day-head flex h-7 items-center justify-center border-b border-black bg-[#9BBB59] text-[11px] font-bold uppercase tracking-wide text-black">
                         {DAY_LABELS[day]}
                       </div>
-                      <div className="relative border-l border-leaf-300" style={{ height: GRID_HEIGHT }}>
+                      <div className="cu-day-col relative border-l border-black bg-white" style={{ height: GRID_HEIGHT }}>
                         {hours.map((hour) => (
                           <React.Fragment key={`${day}-${hour}`}>
-                            {/* :00 half-hour row (top half of the hour) */}
+                            {/* :00 half-hour row (top half of the hour).
+                                The 12:00–13:00 lunch band is non-droppable on
+                                every day: two disabled cells, visually covered
+                                by the LUNCH BREAK strip rendered below. */}
                             <DropCell
                               id={cellId(day, hour, 0)}
                               highlighted={dropPreview?.has(cellId(day, hour, 0)) ?? false}
+                              disabled={hour === 12}
                             />
                             {/* Dashed half-hour gridline between :00 and :30. Kept
                                 lighter than the solid hour line so the hour
@@ -1139,9 +1213,28 @@ export function SchedulePage(): JSX.Element {
                             <DropCell
                               id={cellId(day, hour, 1)}
                               highlighted={dropPreview?.has(cellId(day, hour, 1)) ?? false}
+                              disabled={hour === 12}
                             />
                           </React.Fragment>
                         ))}
+                        {/* Reserved lunch break band (Mon–Sat, 12:00 PM – 1:00 PM):
+                            absolutely positioned over the two 12:xx cells so no
+                            class can be dropped or read there. Pointer events
+                            stay on so the text is selectable; drops are refused
+                            because the cells underneath are disabled AND
+                            handleDragEnd rejects lunch overlaps. */}
+                        <div
+                          aria-label="Lunch break 12:00 PM to 1:00 PM"
+                          className="cu-lunch absolute left-0 right-0 z-10 flex items-center justify-center border-y border-black bg-[#FFF2CC] px-1 text-center"
+                          style={{
+                            top: slotTop(LUNCH_BREAK_START_MINUTES),
+                            height: Math.max(18, ((LUNCH_BREAK_END_MINUTES - LUNCH_BREAK_START_MINUTES) / 60) * HOUR_HEIGHT),
+                          }}
+                        >
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-black">
+                            Lunch break (12:00 PM – 1:00 PM)
+                          </span>
+                        </div>
                         {(slotsByDay.get(day) ?? []).map((slot) => (
                           <PlacedBlock
                             key={slot.id}
@@ -1387,15 +1480,16 @@ export function SchedulePage(): JSX.Element {
  * these stay visually neutral — just the grid. `data-drop-preview` is kept on
  * the spanned cells so the multi-cell duration preview is still assertable.
  */
-function DropCell({ id, highlighted = false }: { id: string; highlighted?: boolean }): JSX.Element {
-  const { setNodeRef } = useDroppable({ id });
+function DropCell({ id, highlighted = false, disabled = false }: { id: string; highlighted?: boolean; disabled?: boolean }): JSX.Element {
+  const { setNodeRef } = useDroppable({ id, disabled });
   return (
     <div
       ref={setNodeRef}
       data-drop-id={id}
       // Exposed so tests can assert the multi-cell preview without class names.
       data-drop-preview={highlighted ? 'true' : undefined}
-      className="border-b border-leaf-200"
+      data-lunch-blocked={disabled ? 'true' : undefined}
+      className="cu-cell border-b border-black bg-white"
       style={{ height: HALF_HOUR_HEIGHT }}
     />
   );
@@ -2047,16 +2141,16 @@ function PlacedBlock({
       aria-roledescription="Scheduled class. Click for details, or press space or enter to pick up and move it."
       aria-label={`${slot.subject_code}, ${slot.section_label}, ${slot.faculty_name}, ${DAY_LABELS[slot.day_of_week]} ${formatTime12h(slot.start_time)} to ${formatTime12h(slot.end_time)}`}
       onClick={handleInspect}
-      className={`absolute left-1 right-1 z-10 cursor-grab touch-none select-none overflow-hidden rounded-md transition-opacity duration-200 ${
+      className={`cu-block absolute left-0.5 right-0.5 z-10 cursor-grab touch-none select-none overflow-hidden rounded-[2px] border border-black transition-opacity duration-200 ${
         dragging ? 'opacity-40 grayscale-[30%]' : dimmed ? 'opacity-20' : ''
       } ${isDragging ? 'opacity-0' : ''}`}
       style={{ top: slotTop(start), height: slotHeight(start, end) }}
     >
       <AssignmentCardBody
-        title={slot.subject_code}
-        subtitle={slot.section_label}
-        meta={`${slot.faculty_name} · ${formatTime12h(slot.start_time)}`}
-        className={`h-full ${slot.color ? '' : 'border-leaf-300 bg-leaf-50/90'}`}
+        title={slot.subject_title || slot.subject_code}
+        subtitle={`${slot.section_label} · ${slot.faculty_name}`}
+        meta={`${formatTime12h(slot.start_time)}–${formatTime12h(slot.end_time)}`}
+        className={`cu-block-body h-full ${slot.color ? '' : 'border-black bg-[#E4DFEC]'}`}
         color={slot.color}
       />
       <button

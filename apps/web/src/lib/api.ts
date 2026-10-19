@@ -15,14 +15,14 @@ const rawApiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
  * A trailing slash is stripped so joining with a leading-slash path can never
  * produce a protocol-relative `//host` URL.
  */
-function resolveApiBase(raw: string): string {
+export function resolveApiBase(raw: string): string {
   const value = raw.trim();
   if (value === '' ) return 'http://localhost:4000';
   if (value === 'same-origin' || value === '/') return '';
   return value.replace(/\/+$/, '');
 }
 
-const apiBase = resolveApiBase(rawApiBase);
+export const apiBase = resolveApiBase(rawApiBase);
 
 /**
  * Resolve a server-provided asset path (avatar photo) against the API base.

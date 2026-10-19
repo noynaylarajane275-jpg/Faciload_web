@@ -57,13 +57,21 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }): JSX.Element {
         <span aria-hidden="true" className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-signal-300 shadow-[0_0_0_4px_rgba(255,106,94,0.18)]" />
         <span className="sidebar-label truncate font-display text-lg font-bold tracking-tight text-ink-100">FACILOAD</span>
       </div>
-      <nav aria-label="Primary" className="flex-1 space-y-1 overflow-y-auto px-3">
-        <p className="sidebar-label px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-widest text-white/45">
-          Workspace
-        </p>
+      <nav aria-label="Primary" className="flex-1 space-y-4 overflow-y-auto px-3">
+        {(() => {
+          let lastGroup: string | null = null;
+          return (
         <ul className="space-y-1">
-          {items.map((item) => (
+          {items.map((item) => {
+            const showGroup = item.group && item.group !== lastGroup;
+            lastGroup = item.group ?? lastGroup;
+            return (
             <li key={item.path}>
+              {showGroup ? (
+              <p className="sidebar-label px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-widest text-white/45">
+                {item.group}
+              </p>
+              ) : null}
               <NavLink
                 to={item.path}
                 onClick={onNavigate}
@@ -80,8 +88,11 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }): JSX.Element {
                 <span className="sidebar-label truncate">{item.label}</span>
               </NavLink>
             </li>
-          ))}
+            );
+          })}
         </ul>
+          );
+        })()}
       </nav>
       <div className="mt-auto border-t border-white/10 p-3">
         <div className="flex items-center gap-3 rounded-xl bg-white/10 px-3 py-2.5">

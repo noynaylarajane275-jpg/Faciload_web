@@ -2,12 +2,9 @@
  * Faculty module UI tests (mirrors SubjectsPage.test.tsx; Module B
  * specifics: linked-login delete warning + explicit confirmation checkbox).
  *
- * The faculty UI is split into two modules that share one directory
- * component: `/faculty` (FacultyPage) is strictly read-only (list, search,
- * workload drill-down), while `/faculty-management` (FacultyManagementPage)
- * hosts every mutation: create (with optional login provisioning), edit, and
- * delete. The write-action tests below render the management module; the
- * read-only tests keep rendering the plain FacultyPage.
+ * Phase 1: single Faculty Management directory (`/faculty`, role-gated
+ * write controls). `/faculty-management` redirects to `/faculty` for
+ * bookmarks; both exports below render the same component.
  */
 import { fireEvent, render, screen, waitFor, within, cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -307,14 +304,14 @@ describe('FacultyManagementPage — role-based controls (FACULTY session)', () =
   });
 });
 
-describe('FacultyPage — read-only module (no management actions)', () => {
-  it('shows no Add/Edit/Delete controls even for the Chair', async () => {
+describe('FacultyPage — single directory (role-gated management actions)', () => {
+  it('shows Add/Edit/Delete controls to the Chair (Phase 1 consolidated directory)', async () => {
     renderPage(); // setRole('CHAIR') from beforeEach
     await screen.findByText('TST-001');
-    expect(screen.queryByRole('button', { name: 'Add Faculty Member' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
-    // The view module still surfaces the read-only workload drill-down.
+    expect(screen.getByRole('button', { name: 'Add Faculty Member' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(2);
+    // The directory still surfaces the read-only workload drill-down.
     expect(screen.getAllByRole('button', { name: 'View workload' })).toHaveLength(2);
   });
 });

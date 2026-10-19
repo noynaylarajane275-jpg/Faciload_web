@@ -3,6 +3,19 @@ import type { DayOfWeek } from '../../lib/schedule-slots';
 /** Grid geometry shared by the droppable cells and the placed-block math. */
 export const DAYS: DayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
+/**
+ * Reserved lunch break (Mon–Sat, 12:00 PM – 1:00 PM), mirroring the API gate
+ * in apps/api/src/services/schedule-slot.service.ts. The grid renders it as
+ * a non-droppable band and drops landing inside it are rejected client-side
+ * before any request is sent.
+ */
+export const LUNCH_BREAK_START_MINUTES = 12 * 60;
+export const LUNCH_BREAK_END_MINUTES = 13 * 60;
+
+/** True when [startMinutes, endMinutes) touches the lunch window. */
+export function overlapsLunchBreak(startMinutes: number, endMinutes: number): boolean {
+  return startMinutes < LUNCH_BREAK_END_MINUTES && endMinutes > LUNCH_BREAK_START_MINUTES;
+}
 export const DAY_LABELS: Record<DayOfWeek, string> = {
   MON: 'Mon',
   TUE: 'Tue',

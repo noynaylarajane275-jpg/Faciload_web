@@ -199,6 +199,8 @@ const MEDIUM = { style: 'medium' as const, color: { argb: 'FF000000' } };
 const HEADER_FILL = 'FF9BBB59';
 /** Lighter green behind the A.M./P.M. gutter, as on the form. */
 const LABEL_FILL = 'FFC6E0B4';
+/** Pale yellow lunch band (12:00 PM – 1:00 PM), matching the web grid. */
+const LUNCH_FILL = 'FFFFF2CC';
 
 /**
  * Fixed height (points) for every half-hour row.
@@ -504,10 +506,9 @@ export async function buildScheduleWorkbook(opts: {
     // implies: the day columns and rows stay put while scrolling.
     views: [{ state: 'frozen', xSplit: COL_TIME_END, ySplit: 8 }],
     pageSetup: {
-      // The form is printed on portrait paper, and the content is centred on
-      // the page both ways — `horizontalCentered`/`verticalCentered` are the
-      // print settings for that, and they only take effect alongside fitToPage.
-      orientation: 'portrait',
+      // The utilization form prints on landscape paper so Mon–Sat plus the
+      // time gutter fit one page wide; content is centred both ways.
+      orientation: 'landscape',
       horizontalCentered: true,
       verticalCentered: true,
       fitToPage: true,
@@ -736,6 +737,32 @@ export async function buildScheduleWorkbook(opts: {
   // Chair picked for that subject is the fill on the sheet.
   const columnByDay = new Map<DayOfWeek, number>();
   days.forEach((day, i) => columnByDay.set(day, COL_FIRST_DAY + i));
+
+  // --- Reserved lunch band (12:00 PM – 1:00 PM, every day) -------------------
+  // The export mirrors the web grid: two merged rows per day column labelled
+  // LUNCH BREAK, so the printed form reserves the hour even though no slot can
+  // legally cover it (the API rejects lunch overlaps on every write path).
+  const lunchTop = gridOptions.firstRow + Math.max(0, (12 - startHour) * 2);
+  const lunchBottom = lunchTop + 1;
+  if (lunchTop >= gridOptions.firstRow && lunchBottom <= rows[rows.length - 1]?.row! + 1) {
+    for (const day of days) {
+      const col = columnByDay.get(day);
+      if (!col) continue;
+      for (let row = lunchTop; row <= lunchBottom; row += 1) {
+        ws.getCell(row, col).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: LUNCH_FILL },
+        };
+      }
+      ws.mergeCells(lunchTop, col, lunchBottom, col);
+      const lunch = ws.getCell(lunchTop, col);
+      lunch.value = 'LUNCH BREAK (12:00 PM – 1:00 PM)';
+      lunch.font = { name: 'Arial', size: 8, bold: true, color: { argb: 'FF000000' } };
+      lunch.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      lunch.border = { top: MEDIUM, bottom: MEDIUM, left: THIN, right: THIN };
+    }
+  }
 
   for (const slot of slots) {
     const col = columnByDay.get(slot.day_of_week);

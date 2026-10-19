@@ -52,6 +52,32 @@
   }
 }
 
+/* Schedule — Excel Classroom Utilization print mode.
+   Screen keeps full editing chrome; print keeps only the formal report:
+   header, green day band, white grid, class blocks, lunch band. */
+@media print {
+  @page {
+    size: landscape;
+    margin: 8mm;
+  }
+  body {
+    background: #fff !important;
+  }
+  .cu-report-head,
+  .cu-grid {
+    break-inside: avoid;
+  }
+  .cu-grid {
+    overflow: visible !important;
+  }
+  .cu-block,
+  .cu-lunch {
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 body {
   background-color: #ffffff;
 }

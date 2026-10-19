@@ -8,7 +8,14 @@ import * as scheduleSlotRepository from '../repositories/schedule-slot.repositor
 import type { ScheduleSlotWithRelations } from '../repositories/schedule-slot.repository.js';
 import * as workloadAssignmentRepository from '../repositories/workload-assignment.repository.js';
 import { detectPlacementConflict, type ConflictResult } from './conflict.service.js';
-import { formatTimeOfDay, parseTimeOfDay, timeOfDayToMinutes } from '../utils/time.js';
+import {
+  formatTimeOfDay,
+  LUNCH_BREAK_END_MINUTES,
+  LUNCH_BREAK_START_MINUTES,
+  overlapsLunchBreak,
+  parseTimeOfDay,
+  timeOfDayToMinutes,
+} from '../utils/time.js';
 import {
   confirmOverrideSchema,
   createScheduleSlotSchema,
@@ -124,6 +131,33 @@ async function assertRoomExists(roomId: string | null): Promise<void> {
 }
 
 /**
+ * Reserved lunch break (12:00 PM – 1:00 PM, Mon–Sat). Rejects any placement
+ * that touches the window — including a block that starts before noon and
+ * ends after it. Hard 400 on every write path (create, move, override);
+ * existing rows are never rewritten, only reported for review.
+ */
+function assertOutsideLunchBreak(startTime: string, endTime: string): void {
+  const start = timeOfDayToMinutes(formatTimeOfDay(startTime));
+  const end = timeOfDayToMinutes(formatTimeOfDay(endTime));
+  if (overlapsLunchBreak(start, end)) {
+    throw ApiError.badRequest(
+      `Lunch break is reserved ${formatLunchRange()} — pick a slot that ends by 12:00 PM or starts at 1:00 PM`,
+      { field: 'start_time' },
+    );
+  }
+}
+
+function formatLunchRange(): string {
+  const fmt = (mins: number): string => {
+    const h24 = Math.floor(mins / 60);
+    const suffix = h24 < 12 ? 'AM' : 'PM';
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${h12}:00 ${suffix}`;
+  };
+  return `(${fmt(LUNCH_BREAK_START_MINUTES)} – ${fmt(LUNCH_BREAK_END_MINUTES)})`;
+}
+
+/**
  * Rejects a placement whose session-type hours would exceed the subject's
  * budgeted lecture/lab hours (database-specification.md §4.3).
  */
@@ -192,6 +226,7 @@ export async function createScheduleSlot(rawBody: unknown): Promise<ScheduleSlot
   const hours = (timeOfDayToMinutes(input.end_time) -
     timeOfDayToMinutes(input.start_time)) / 60;
   assertWithinBlockCap(sessionType, hours);
+  assertOutsideLunchBreak(input.start_time, input.end_time);
 
   await assertWithinSessionCapacity(assignment, sessionType, hours);
 
@@ -244,6 +279,7 @@ export async function updateScheduleSlot(id: string, rawBody: unknown): Promise<
   const hours = (timeOfDayToMinutes(formatTimeOfDay(endTime)) -
     timeOfDayToMinutes(formatTimeOfDay(startTime))) / 60;
   assertWithinBlockCap(sessionType, hours);
+  assertOutsideLunchBreak(startTime, endTime);
 
   await assertWithinSessionCapacity(existing.workload_assignment, sessionType, hours, id);
 
@@ -298,6 +334,8 @@ export async function confirmOverride(
 
   const startTime = parseTimeOfDay(input.start_time);
   const endTime = parseTimeOfDay(input.end_time);
+  // Lunch break cannot be overridden — even the Chair override path rejects it.
+  assertOutsideLunchBreak(startTime, endTime);
   const overrideHours =
     (timeOfDayToMinutes(formatTimeOfDay(endTime)) - timeOfDayToMinutes(formatTimeOfDay(startTime))) / 60;
 

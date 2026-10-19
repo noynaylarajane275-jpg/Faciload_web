@@ -42,3 +42,17 @@ export function timeOfDayToMinutes(value: string): number {
   const [hours = '0', minutes = '0'] = value.split(':');
   return Number(hours) * 60 + Number(minutes);
 }
+
+/**
+ * Reserved lunch break (Mon–Sat, 12:00 PM – 1:00 PM). No class may be
+ * scheduled during this window — see schedule-slot.service.ts, which rejects
+ * any placement overlapping it, and the web grid, which renders it as a
+ * non-droppable band.
+ */
+export const LUNCH_BREAK_START_MINUTES = 12 * 60;
+export const LUNCH_BREAK_END_MINUTES = 13 * 60;
+
+/** True when [startMinutes, endMinutes) touches the lunch window. */
+export function overlapsLunchBreak(startMinutes: number, endMinutes: number): boolean {
+  return startMinutes < LUNCH_BREAK_END_MINUTES && endMinutes > LUNCH_BREAK_START_MINUTES;
+}
