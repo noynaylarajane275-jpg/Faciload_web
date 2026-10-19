@@ -1,0 +1,152 @@
+// FACILOAD Prisma schema — mirrors docs/4-database.md exactly.
+// Local dev runs on SQLite (file:./dev.db — no container or DB server). The
+// former Prisma enums (Role / EmploymentStatus / DayOfWeek / Semester /
+// SessionType) are stored as plain String columns with their valid values
+// documented inline; Zod (apps/api/src/validation/*.validation.ts) enforces
+// them at the API layer just as strictly as the enums did. The shared TS
+// enums in packages/shared/src/index.ts (frontend) mirror the same value
+// sets; keep both in sync.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// SQLite for local dev; PostgreSQL remains the documented production target
+// (docs/4-database.md). Path is relative to this schema file.
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  role          String   @default("FACULTY") // CHAIR | FACULTY | ACADEMIC_ADMIN
+  faculty_id    String?  @unique
+  faculty       Faculty? @relation(fields: [faculty_id], references: [id], onDelete: Restrict)
+  /// URL of the profile photo (local uploads path or S3 key URL). Null = no
+  /// photo uploaded yet; the UI falls back to initials.
+  avatar_url    String?
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @default(now()) @updatedAt
+
+  @@map("users")
+}
+
+model Faculty {
+  id                String           @id @default(uuid())
+  employee_no       String           @unique
+  first_name        String
+  last_name         String
+  rank              String?
+  employment_status String           @default("FULL_TIME") // FULL_TIME | PART_TIME
+  max_units         Int              @default(24)
+  /// Mirror of the linked user's avatar (denormalized so faculty lists on the
+  /// dashboard/load panels can render the photo without a user join).
+  avatar_url        String?
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @default(now()) @updatedAt
+  deleted_at        DateTime?
+  user              User?
+  assignments       WorkloadAssignment[]
+
+  @@map("faculty")
+}
+
+model Subject {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  title         String
+  // Float instead of Decimal: SQLite has no arbitrary-precision decimal type.
+  // IEEE-754 double precision is a fine tradeoff for department-scale
+  // unit/hour counts (values stay exact for the small 2dp ranges used here).
+  units         Float
+  lecture_hours Float     @default(0)
+  lab_hours     Float     @default(0)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @default(now()) @updatedAt
+  deleted_at    DateTime?
+  assignments   WorkloadAssignment[]
+
+  @@map("subjects")
+}
+
+model Section {
+  id          String   @id @default(uuid())
+  year_level  Int
+  name        String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now()) @updatedAt
+  assignments WorkloadAssignment[]
+
+  @@unique([year_level, name])
+  @@map("sections")
+}
+
+model Room {
+  id                   String   @id @default(uuid())
+  name                 String   @unique
+  is_under_maintenance Boolean  @default(false)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @default(now()) @updatedAt
+  slots                ScheduleSlot[]
+
+  @@map("rooms")
+}
+
+model AcademicTerm {
+  id          String   @id @default(uuid())
+  school_year String
+  semester    String   // FIRST | SECOND | SUMMER
+  is_active   Boolean  @default(false)
+  created_at  DateTime @default(now())
+  assignments WorkloadAssignment[]
+
+  @@unique([school_year, semester])
+  @@map("academic_terms")
+}
+
+model WorkloadAssignment {
+  id         String         @id @default(uuid())
+  faculty_id String
+  faculty    Faculty        @relation(fields: [faculty_id], references: [id], onDelete: Restrict)
+  subject_id String
+  subject    Subject        @relation(fields: [subject_id], references: [id], onDelete: Restrict)
+  section_id String
+  section    Section        @relation(fields: [section_id], references: [id], onDelete: Restrict)
+  term_id    String
+  term       AcademicTerm   @relation(fields: [term_id], references: [id], onDelete: Restrict)
+  color      String?        // #RRGGBB hex (was @db.VarChar(7))
+  created_at DateTime       @default(now())
+  updated_at DateTime       @default(now()) @updatedAt
+  deleted_at DateTime?
+  slots      ScheduleSlot[]
+
+  @@unique([faculty_id, subject_id, section_id, term_id])
+  @@index([faculty_id])
+  @@index([term_id])
+  @@map("workload_assignments")
+}
+
+model ScheduleSlot {
+  id                     String             @id @default(uuid())
+  workload_assignment_id String
+  workload_assignment    WorkloadAssignment @relation(fields: [workload_assignment_id], references: [id], onDelete: Cascade)
+  room_id                String?
+  room                   Room?              @relation(fields: [room_id], references: [id], onDelete: Restrict)
+  session_type           String             // LECTURE | LAB
+  day_of_week            String             // MON | TUE | WED | THU | FRI | SAT
+  // Stored as canonical "HH:MM" 24-hour strings — the same format the API
+  // boundary sends/receives (SQLite has no native TIME type; zero-padded
+  // strings also sort and compare correctly for overlap checks).
+  start_time             String
+  end_time               String
+  created_at             DateTime           @default(now())
+  updated_at             DateTime           @default(now()) @updatedAt
+
+  @@index([room_id, day_of_week])
+  @@index([workload_assignment_id, day_of_week])
+  @@map("schedule_slots")
+}

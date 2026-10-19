@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  /* ---- app-wide glass surfaces (shared by login modal, cards, shell) ----
+     Light-only: the dark/light toggle was removed, so no dark variants. */
+  .app-bg {
+    @apply bg-white text-slate-900;
+  }
+  .glass-card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05),0_14px_36px_-24px_rgba(74,10,26,0.28)];
+  }
+  .glass-input {
+    @apply w-full rounded-xl border-[1.5px] border-brand-500/20 bg-white/80 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15;
+  }
+  .glass-label {
+    @apply mb-1.5 block text-xs font-semibold text-slate-600;
+  }
+  .glass-icon {
+    @apply pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500/70;
+  }
+  .glass-btn-primary {
+    @apply w-full rounded-xl bg-gradient-to-b from-brand-400 to-brand-500 py-3.5 font-bold text-white shadow-[0_12px_26px_-10px_rgba(127,15,38,0.65)] transition-shadow hover:shadow-[0_16px_30px_-10px_rgba(127,15,38,0.75)] disabled:opacity-50;
+  }
+  .glass-link {
+    @apply cursor-pointer font-semibold text-brand-500 hover:text-brand-400;
+  }
+  .glass-chip {
+    @apply rounded-full border border-brand-500/20 bg-brand-500/10 text-brand-500;
+  }
+
+  /* ---- dark crimson glass — login dialog only. Mirrors the landing page
+     CtaSection card: black→dark-red gradient, glass hairline borders, ember accents. */
+  .glass-card-dark {
+    @apply rounded-2xl border border-glass-border-strong bg-gradient-to-br from-navy-800 via-navy-900 to-navy-950 shadow-[0_30px_70px_rgba(6,2,4,0.55)] backdrop-blur-[18px];
+  }
+  .glass-input-dark {
+    @apply w-full rounded-xl border-[1.5px] border-glass-border bg-white/[0.06] text-sm text-ink-100 outline-none transition-colors placeholder:text-ink-500 focus:border-signal-300 focus:bg-white/[0.09] focus:ring-4 focus:ring-signal-300/15;
+  }
+  .glass-label-dark {
+    @apply mb-1.5 block text-xs font-semibold text-ink-300;
+  }
+  .glass-icon-dark {
+    @apply pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-signal-300/70;
+  }
+  .glass-btn-primary-dark {
+    @apply w-full rounded-xl bg-gradient-to-b from-brand-400 to-[#7f0d24] py-3.5 font-bold text-white shadow-[0_12px_26px_-10px_rgba(230,62,92,0.45)] transition-shadow hover:shadow-[0_16px_30px_-10px_rgba(230,62,92,0.6)] disabled:opacity-50;
+  }
+  .glass-link-dark {
+    @apply cursor-pointer font-semibold text-signal-300 hover:text-white;
+  }
+}
+
+body {
+  background-color: #ffffff;
+}
+
+/* Landing motion: smooth anchor scroll + respect reduced-motion prefs. */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Landing aura background (Aura reference style): soft pastel mesh "clouds"
+   layered at the top in the FACILOAD rose → crimson family, masked to fade
+   cleanly into white. Distinct from FlowSched's hard grid — an airy pastel
+   aurora instead of lines. Kept as one class so the JSX stays legible. */
+.landing-mesh {
+  background-image:
+    radial-gradient(42% 48% at 20% 16%, rgba(251, 113, 133, 0.30), transparent 62%),
+    radial-gradient(44% 54% at 80% 12%, rgba(185, 28, 60, 0.20), transparent 62%),
+    radial-gradient(40% 44% at 50% 2%, rgba(253, 164, 175, 0.36), transparent 66%),
+    radial-gradient(46% 46% at 8% 30%, rgba(196, 140, 255, 0.16), transparent 60%),
+    radial-gradient(48% 48% at 92% 28%, rgba(244, 114, 182, 0.22), transparent 62%);
+  mask-image: radial-gradient(ellipse 80% 64% at 50% 2%, black 6%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 64% at 50% 2%, black 6%, transparent 78%);
+}
+
+/* Landing page-level background — dark rose gradient (black → dark red). A rich
+   near-black base with a rose "aurora" glow blooming at the top, fading to deep
+   crimson and near-black toward the bottom. Light glass cards float on top. */
+.mesh-gradient {
+  background-color: #12030a;
+  background-image:
+    radial-gradient(52% 42% at 50% -6%, rgba(213, 72, 101, 0.45) 0px, transparent 62%),
+    radial-gradient(42% 38% at 12% 12%, rgba(159, 31, 60, 0.55) 0px, transparent 62%),
+    radial-gradient(44% 40% at 88% 10%, rgba(120, 12, 40, 0.62) 0px, transparent 62%),
+    linear-gradient(180deg, #2a0710 0%, #17040a 46%, #0b0205 100%);
+}
+
+/* Landing glass surfaces (reference style). A light frosted panel for cards /
+   nav / footer, and a dark crimson glass for the command-center mockup and the
+   closing CTA banner. */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(213, 72, 101, 0.12);
+}
+.glass-dark {
+  background: rgba(112, 28, 49, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
