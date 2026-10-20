@@ -12,6 +12,7 @@ import { FacultySchedulePage } from './pages/Views/FacultySchedulePage';
 import { RoomSchedulePage } from './pages/Views/RoomSchedulePage';
 import { WorkloadAssignmentPage } from './pages/WorkloadAssignment/WorkloadAssignmentPage';
 import { RoomsPage } from './pages/RoomsPage';
+import { SectionsPage } from './pages/SectionsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { AccountSettingsPage } from './pages/AccountSettingsPage';
 import { NotAuthorizedPage } from './pages/NotAuthorizedPage';
@@ -103,6 +104,14 @@ export function App(): JSX.Element {
               element={
                 <RequireAuth allowedRoles={MANAGEMENT_ROLES}>
                   <RoomsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/sections"
+              element={
+                <RequireAuth allowedRoles={MANAGEMENT_ROLES}>
+                  <SectionsPage />
                 </RequireAuth>
               }
             />

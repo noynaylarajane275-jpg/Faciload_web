@@ -99,7 +99,7 @@ async function seedFixtures(): Promise<Fixtures> {
   const roomA = await prisma.room.create({ data: { name: `${PREFIX}Room A` } });
   const roomB = await prisma.room.create({ data: { name: `${PREFIX}Room B` } });
   const section = await prisma.section.create({
-    data: { year_level: 1, name: `${PREFIX}1A` },
+    data: { year_level: 1, name: `${PREFIX}1A`, size: 40 },
   });
   const facultyA = await prisma.faculty.create({
     data: { employee_no: `${PREFIX}A`, first_name: 'Ada', last_name: 'Lovelace' },

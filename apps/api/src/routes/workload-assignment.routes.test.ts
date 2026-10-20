@@ -87,8 +87,8 @@ async function seedIds(): Promise<Ids> {
   const otherSubject = await prisma.subject.create({
     data: { code: `${PREFIX}102`, title: 'Second Subject', units: 3, lecture_hours: 3, lab_hours: 0 },
   });
-  const section = await prisma.section.create({ data: { year_level: 2, name: `${PREFIX}1A` } });
-  const otherSection = await prisma.section.create({ data: { year_level: 2, name: `${PREFIX}1B` } });
+  const section = await prisma.section.create({ data: { year_level: 2, name: `${PREFIX}1A`, size: 40 } });
+  const otherSection = await prisma.section.create({ data: { year_level: 2, name: `${PREFIX}1B`, size: 40 } });
   const faculty = await prisma.faculty.create({
     data: { employee_no: `${PREFIX}1`, first_name: 'Work', last_name: 'Load' },
   });

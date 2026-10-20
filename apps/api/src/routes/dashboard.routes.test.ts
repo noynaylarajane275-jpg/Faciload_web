@@ -66,8 +66,8 @@ async function seedGraph(): Promise<{ t: string; r: string; m: string; a: string
   const maint = await prisma.room.create({
     data: { name: `${PREFIX}Room Maint`, is_under_maintenance: true },
   });
-  const sec1 = await prisma.section.create({ data: { year_level: 1, name: `${PREFIX}1A` } });
-  const sec2 = await prisma.section.create({ data: { year_level: 2, name: `${PREFIX}2B` } });
+  const sec1 = await prisma.section.create({ data: { year_level: 1, name: `${PREFIX}1A`, size: 40 } });
+  const sec2 = await prisma.section.create({ data: { year_level: 2, name: `${PREFIX}2B`, size: 40 } });
   const facA = await prisma.faculty.create({
     data: { employee_no: `${PREFIX}A`, first_name: 'Ada', last_name: 'Lovelace', max_units: 5 },
   });

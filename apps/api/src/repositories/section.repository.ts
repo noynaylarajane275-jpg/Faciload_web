@@ -9,6 +9,7 @@ export interface SectionListParams {
 export interface SectionCreateData {
   year_level: number;
   name: string;
+  size: number;
 }
 
 export type SectionUpdateData = Partial<SectionCreateData>;

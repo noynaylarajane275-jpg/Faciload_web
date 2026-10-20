@@ -4,6 +4,7 @@ export interface Section {
   id: string;
   year_level: number;
   name: string;
+  size: number;
   /** "1A (Year 1)" — ready-made dropdown label from the API. */
   label: string;
   created_at: string;
@@ -18,6 +19,7 @@ export interface SectionListResult {
 export interface SectionInput {
   year_level: number;
   name: string;
+  size: number;
 }
 
 export function listSections(

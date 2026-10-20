@@ -48,15 +48,22 @@ function integerFrom(label: string, min: number, max: number) {
 }
 
 /**
- * Year level 1–6 covers the standard five-year IE curriculum plus a margin
+ * Year level 1–4 covers the four-year BSIE curriculum
  * (the column is a plain int in the DB; this range is the app-level guard).
  */
-export const yearLevelSchema = integerFrom('Year level', 1, 6);
+export const yearLevelSchema = integerFrom('Year level', 1, 4);
+
+/**
+ * Student headcount for the section. Plain positive int in the DB;
+ * 500 cap is an app-level sanity guard, not a curriculum rule.
+ */
+export const sectionSizeSchema = integerFrom('Size', 1, 500);
 
 export const createSectionSchema = z
   .object({
     year_level: yearLevelSchema,
     name: presentString('Section name', 60),
+    size: sectionSizeSchema,
   })
   .strict();
 
@@ -66,6 +73,7 @@ export const updateSectionSchema = z
   .object({
     year_level: yearLevelSchema.optional(),
     name: presentString('Section name', 60).optional(),
+    size: sectionSizeSchema.optional(),
   })
   .strict()
   .refine((data) => Object.keys(data).length > 0, {

@@ -67,11 +67,11 @@ beforeAll(async () => {
   facultyToken = faculty.body.accessToken as string;
 });
 
-function createSection(yearLevel: number, name: string, token = chairToken) {
+function createSection(yearLevel: number, name: string, token = chairToken, size = 40) {
   return request(createApp())
     .post('/api/sections')
     .set('Authorization', `Bearer ${token}`)
-    .send({ year_level: yearLevel, name });
+    .send({ year_level: yearLevel, name, size });
 }
 
 describe('Sections API', () => {

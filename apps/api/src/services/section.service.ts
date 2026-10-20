@@ -14,6 +14,7 @@ export interface SectionDto {
   id: string;
   year_level: number;
   name: string;
+  size: number;
   /** Convenience label ("1A — Year 1") used by every section dropdown. */
   label: string;
   created_at: string;
@@ -38,6 +39,7 @@ export function toSectionDto(section: Section): SectionDto {
     id: section.id,
     year_level: section.year_level,
     name: section.name,
+    size: section.size,
     label: `${section.name} (Year ${section.year_level})`,
     created_at: section.created_at.toISOString(),
     updated_at: section.updated_at.toISOString(),

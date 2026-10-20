@@ -82,13 +82,13 @@ async function main(): Promise<void> {
   // database. No WorkloadAssignments are seeded on purpose: the Workload
   // Assignment page is the intended first-run path for creating them.
   for (const section of [
-    { year_level: 1, name: 'BSIE 1A' },
-    { year_level: 2, name: 'BSIE 2A' },
-    { year_level: 3, name: 'BSIE 3A' },
-    { year_level: 4, name: 'BSIE 4A' },
+    { year_level: 1, name: 'BSIE 1A', size: 40 },
+    { year_level: 2, name: 'BSIE 2A', size: 40 },
+    { year_level: 3, name: 'BSIE 3A', size: 40 },
+    { year_level: 4, name: 'BSIE 4A', size: 40 },
   ]) {
     await prisma.section.upsert({
-      where: { year_level_name: section },
+      where: { year_level_name: { year_level: section.year_level, name: section.name } },
       update: {},
       create: section,
     });
@@ -113,7 +113,7 @@ async function main(): Promise<void> {
 
   // eslint-disable-next-line no-console
   console.log(
-    `[seed] term=${term.school_year} ${term.semester} rooms=4 subjects=3 sections=4 faculty=3 users=2`,
+    `[seed] term=${term?.school_year ?? '2026-2027'} ${term?.semester ?? 'FIRST'} rooms=4 subjects=3 sections=4 faculty=3 users=2`,
   );
 }
 

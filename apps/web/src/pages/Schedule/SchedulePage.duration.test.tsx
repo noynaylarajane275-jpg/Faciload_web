@@ -101,6 +101,7 @@ const SECTION: Section = {
   id: 'section-1',
   year_level: 2,
   name: 'BSIE 2A',
+  size: 40,
   label: 'BSIE 2A (Year 2)',
   created_at: '2026-09-01T00:00:00.000Z',
   updated_at: '2026-09-01T00:00:00.000Z',

@@ -18,6 +18,7 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+// Users Model
 model User {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -35,6 +36,7 @@ model User {
   @@map("users")
 }
 
+// Faculty Information Model
 model Faculty {
   id                String           @id @default(uuid())
   employee_no       String           @unique
@@ -55,6 +57,7 @@ model Faculty {
   @@map("faculty")
 }
 
+// Subjects Model
 model Subject {
   id            String    @id @default(uuid())
   code          String    @unique
@@ -73,10 +76,13 @@ model Subject {
   @@map("subjects")
 }
 
+// Sections Model
 model Section {
   id          String   @id @default(uuid())
   year_level  Int
   name        String
+  // Added by Adrian: Student Size for each Section
+  size        Int
   created_at  DateTime @default(now())
   updated_at  DateTime @default(now()) @updatedAt
   assignments WorkloadAssignment[]

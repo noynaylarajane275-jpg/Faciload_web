@@ -24,6 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Faculty Management', path: '/faculty', icon: 'faculty-manage', allowedRoles: MANAGEMENT_ROLES, group: 'People' },
   { label: 'Subjects', path: '/subjects', icon: 'subjects', allowedRoles: MANAGEMENT_ROLES, group: 'Academic Setup' },
   { label: 'Rooms', path: '/rooms', icon: 'rooms', allowedRoles: MANAGEMENT_ROLES, group: 'Academic Setup' },
+  { label: 'Sections', path: '/sections', icon: 'sections', allowedRoles: MANAGEMENT_ROLES, group: 'Academic Setup' },
   { label: 'Schedule', path: '/schedule', icon: 'schedule', allowedRoles: ALL_ROLES, group: 'Workload & Scheduling' },
   { label: 'Section Schedule', path: '/views/section', icon: 'view-section', allowedRoles: MANAGEMENT_ROLES, group: 'Workload & Scheduling' },
   // Phase 1: Faculty Schedule is the single instructor grid. /workload stays as

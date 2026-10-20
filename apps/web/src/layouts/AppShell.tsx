@@ -26,6 +26,7 @@ function SideIcon({ name }: { name: string }): JSX.Element {
     'faculty-manage': (<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M19 8v6M22 11h-6" /></>),
     subjects: (<><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" /></>),
     rooms: (<><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M9 22V12h6v10" /></>),
+    sections: (<><rect width="18" height="16" x="3" y="4" rx="2" /><path d="M3 9h18" /><path d="M9 9v11" /></>),
     reports: (<><path d="M3 3v18h18" /><path d="M7 15v-4M12 17V7M17 13v-2" /></>),
     workload: (<><path d="M12 20V10M18 20V4M6 20v-4" /></>),
     account: (<><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></>),

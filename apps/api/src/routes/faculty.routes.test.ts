@@ -486,7 +486,7 @@ describe('DELETE /api/faculty/:id', () => {
     const subject = await prisma.subject.create({
       data: { code: 'FKTST-E', title: 'FK Subject', units: 3 },
     });
-    const section = await prisma.section.create({ data: { year_level: 1, name: 'FKTST-E 1A' } });
+    const section = await prisma.section.create({ data: { year_level: 1, name: 'FKTST-E 1A', size: 40 } });
     const term = await prisma.academicTerm.create({
       data: { school_year: 'FKTST-E-SY', semester: 'FIRST' },
     });
@@ -532,7 +532,7 @@ describe('DELETE /api/faculty/:id', () => {
     const subject = await prisma.subject.create({
       data: { code: 'FKTST-E', title: 'FK Subject', units: 3 },
     });
-    const section = await prisma.section.create({ data: { year_level: 1, name: 'FKTST-E 1A' } });
+    const section = await prisma.section.create({ data: { year_level: 1, name: 'FKTST-E 1A', size: 40 } });
     const term = await prisma.academicTerm.create({
       data: { school_year: 'FKTST-E-SY', semester: 'FIRST' },
     });
