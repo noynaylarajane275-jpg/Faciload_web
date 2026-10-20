@@ -50,6 +50,13 @@ export interface FacultyAccountInput {
   password: string;
 }
 
+export interface UnlinkedUser {
+  id: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
 export interface FacultyInput {
   employee_no: string;
   first_name: string;
@@ -59,6 +66,8 @@ export interface FacultyInput {
   max_units?: number;
   /** Opt-in: provision a linked FACULTY login so they can view their schedule. */
   account?: FacultyAccountInput;
+  /** Alternative: link an already-registered (unlinked) user account. */
+  existing_user_id?: string;
 }
 
 /** Response from POST /api/faculty — the created faculty plus its linked login. */
@@ -107,4 +116,17 @@ export function updateFaculty(
 export async function deleteFaculty(id: string, confirmLinkedUser = false): Promise<void> {
   const qs = confirmLinkedUser ? '?confirmLinkedUser=true' : '';
   await apiFetch<unknown>(`/api/faculty/${id}${qs}`, { method: 'DELETE' });
+}
+
+/** Self-registered accounts waiting for a Chair to link them (CHAIR-only). */
+export function listUnlinkedUsers(): Promise<{ users: UnlinkedUser[] }> {
+  return apiFetch<{ users: UnlinkedUser[] }>('/api/faculty/unlinked-users');
+}
+
+/** Link a self-registered account to an existing faculty record (CHAIR-only). */
+export function linkFacultyUser(id: string, existingUserId: string): Promise<{ faculty: FacultyMember }> {
+  return apiFetch<{ faculty: FacultyMember }>(`/api/faculty/${id}/link-user`, {
+    method: 'POST',
+    body: JSON.stringify({ existing_user_id: existingUserId }),
+  });
 }

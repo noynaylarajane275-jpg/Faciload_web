@@ -12,7 +12,9 @@ import { ToastProvider } from '../components/Toast';
 import {
   createFaculty,
   deleteFaculty,
+  linkFacultyUser,
   listFaculty,
+  listUnlinkedUsers,
   updateFaculty,
   type FacultyMember,
 } from '../lib/faculty';
@@ -28,6 +30,8 @@ vi.mock('../lib/faculty', () => ({
   createFaculty: vi.fn(),
   updateFaculty: vi.fn(),
   deleteFaculty: vi.fn(),
+  listUnlinkedUsers: vi.fn(),
+  linkFacultyUser: vi.fn(),
 }));
 
 vi.mock('../lib/workload-assignments', () => ({
@@ -103,6 +107,8 @@ beforeEach(() => {
   createFacultyMock.mockResolvedValue({ faculty: FACULTY_A });
   updateFacultyMock.mockResolvedValue({ faculty: FACULTY_A });
   deleteFacultyMock.mockResolvedValue(undefined);
+  vi.mocked(listUnlinkedUsers).mockResolvedValue({ users: [] });
+  vi.mocked(linkFacultyUser).mockResolvedValue({ faculty: FACULTY_A });
 });
 
 describe('FacultyPage — list rendering', () => {
@@ -217,6 +223,24 @@ describe('FacultyManagementPage — create', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('already in use');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('links an existing registered account when chosen', async () => {
+    vi.mocked(listUnlinkedUsers).mockResolvedValue({
+      users: [{ id: 'u-pending', email: 'pending@faciload.local', role: 'FACULTY', created_at: '2026-09-14T00:00:00.000Z' }],
+    });
+    renderManagePage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Add Faculty Member' }));
+    fireEvent.change(screen.getByLabelText('Employee no'), { target: { value: 'TST-110' } });
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Link' } });
+    fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Me' } });
+    fireEvent.click(screen.getByLabelText('Use an existing registered account'));
+    await screen.findByLabelText('Registered account (awaiting approval)');
+    fireEvent.change(screen.getByLabelText('Registered account (awaiting approval)'), { target: { value: 'u-pending' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(createFacultyMock).toHaveBeenCalledWith(expect.objectContaining({ existing_user_id: 'u-pending' }));
+    });
   });
 });
 

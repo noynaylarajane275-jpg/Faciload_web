@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { ApiError } from '../errors/apiError.js';
-import { requireAuth, requireRole } from '../middleware/auth.middleware.js';
+import { requireAuth, requireLinkedFaculty, requireRole } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
   createSubject,
@@ -26,6 +26,7 @@ function parseId(req: Request): string {
 subjectRouter.get(
   '/subjects',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (req, res) => {
     res.status(200).json(await listSubjects(req.query));
   }),
@@ -34,6 +35,7 @@ subjectRouter.get(
 subjectRouter.get(
   '/subjects/:id',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (req, res) => {
     res.status(200).json({ subject: await getSubject(parseId(req)) });
   }),

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireAuth, requireLinkedFaculty } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { getDashboardSummary } from '../services/dashboard.service.js';
 
@@ -15,6 +15,7 @@ export const dashboardRouter = Router();
 dashboardRouter.get(
   '/dashboard/summary',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (req, res) => {
     if (!req.user) {
       res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });

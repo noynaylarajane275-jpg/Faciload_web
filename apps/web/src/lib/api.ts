@@ -201,10 +201,29 @@ export async function loginRequest(email: string, password: string): Promise<Log
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
-  const body = (await res.json()) as LoginResponse & { error?: { message?: string } };
+  const body = (await res.json()) as LoginResponse & { error?: { message?: string; code?: string } };
   if (!res.ok) {
     // Backend already returns the generic "Invalid email or password".
-    throw toApiError(res.status, body.error?.message ?? 'Invalid email or password');
+    throw toApiError(res.status, body.error?.message ?? 'Invalid email or password', body.error?.code);
+  }
+  return body;
+}
+
+/**
+ * Public self-registration. Creates a FACULTY-role user with facultyId null —
+ * the account can sign in but sees the "awaiting approval" screen until a
+ * Chair links it through Faculty Management. Same response shape as login so
+ * the caller can sign the user straight in.
+ */
+export async function registerRequest(email: string, password: string, confirmPassword: string): Promise<LoginResponse> {
+  const res = await fetch(`${apiBase}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, confirmPassword }),
+  });
+  const body = (await res.json()) as LoginResponse & { error?: { message?: string; code?: string; details?: unknown } };
+  if (!res.ok) {
+    throw toApiError(res.status, body.error?.message ?? 'Could not create your account', body.error?.code, body.error?.details);
   }
   return body;
 }

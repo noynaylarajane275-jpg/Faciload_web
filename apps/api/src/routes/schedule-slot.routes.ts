@@ -1,6 +1,6 @@
 import { Router, type Request } from 'express';
 import { ApiError } from '../errors/apiError.js';
-import { requireAuth, requireRole } from '../middleware/auth.middleware.js';
+import { requireAuth, requireLinkedFaculty, requireRole } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
   confirmOverride,
@@ -28,6 +28,7 @@ function parseId(req: Request, label: string): string {
 scheduleSlotRouter.get(
   '/schedule-slots',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (req, res) => {
     res.status(200).json(await listScheduleSlots(req.query));
   }),

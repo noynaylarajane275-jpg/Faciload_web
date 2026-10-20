@@ -18,6 +18,7 @@ import { useUiStore } from '../../store/ui.store';
 export function Landing({ openLoginOnMount = false }: { openLoginOnMount?: boolean }): JSX.Element {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const role = useAuthStore((s) => s.user?.role);
+  const facultyId = useAuthStore((s) => s.user?.facultyId);
   const openLoginModal = useUiStore((s) => s.openLoginModal);
 
   useEffect(() => {
@@ -27,8 +28,12 @@ export function Landing({ openLoginOnMount = false }: { openLoginOnMount?: boole
   }, [openLoginOnMount, openLoginModal]);
 
   if (isAuthenticated) {
-    // Mirror the login landing: faculty sessions resume on their own
-    // workload, management on the department dashboard.
+    // Unlinked FACULTY accounts (self-registered, awaiting chair approval) go
+    // to the pending screen — never the data pages. Linked faculty resume on
+    // their own workload, management on the department dashboard.
+    if (role === 'FACULTY' && !facultyId) {
+      return <Navigate to="/pending-approval" replace />;
+    }
     return <Navigate to={role === 'FACULTY' ? '/workload' : '/dashboard'} replace />;
   }
 

@@ -20,6 +20,7 @@ import { prisma } from '../config/prisma.js';
 import { hashPassword } from './auth.service.js';
 import {
   createFacultySchema,
+  facultyExistingUserSchema,
   facultyQuerySchema,
   updateFacultySchema,
   type CreateFacultyInput,
@@ -138,30 +139,58 @@ export async function createFaculty(rawBody: unknown): Promise<FacultyDto> {
   const input: CreateFacultyInput = parseOrBadRequest(createFacultySchema, rawBody);
   await assertEmployeeNoAvailable(input.employee_no);
 
+  // Link an already-registered (self-registered, unlinked) user instead of
+  // creating a new login. Validated + linked atomically with the faculty row.
+  if (input.existing_user_id) {
+    const target = await prisma.user.findUnique({ where: { id: input.existing_user_id } });
+    if (!target) {
+      throw ApiError.notFound('User account not found');
+    }
+    if (!target.is_active) {
+      throw ApiError.conflict('USER_INACTIVE', 'That user account is deactivated', {
+        field: 'existing_user_id',
+      });
+    }
+    if (target.faculty_id) {
+      throw ApiError.conflict('USER_ALREADY_LINKED', 'That user account is already linked to a faculty record', {
+        field: 'existing_user_id',
+      });
+    }
+    const created = await prisma.$transaction(async (tx) => {
+      const faculty = await tx.faculty.create({ data: facultyFields(input) });
+      await tx.user.update({
+        where: { id: target.id },
+        data: { faculty_id: faculty.id, role: 'FACULTY' },
+      });
+      return faculty;
+    });
+    const withUser = await findActiveWithUserById(created.id);
+    return withUser ? toFacultyDto(withUser) : toFacultyDtoFromRow(created);
+  }
+
   // No account requested → historical behavior (faculty row only, user: null).
-  if (!input.account) {
+  const account = input.account;
+  if (!account) {
     const created = await createFacultyRow({ ...facultyFields(input), rank: input.rank ?? null });
     return toFacultyDtoFromRow(created);
   }
 
   // Opt-in login: provision the faculty AND a linked FACULTY user atomically so
   // a partially-created pair can never exist. The account email must be unique
-  // (mirrors the 409 duplicate-employee_no guard surface).
-  const email = input.account.email.toLowerCase();
-  const emailTaken = await prisma.user.findUnique({ where: { email } });
+  const emailTaken = await prisma.user.findUnique({ where: { email: account.email } });
   if (emailTaken) {
-    throw ApiError.conflict('USER_EMAIL_IN_USE', `Email "${input.account.email}" is already in use`, {
+    throw ApiError.conflict('USER_EMAIL_IN_USE', `Email "${account.email}" is already in use`, {
       field: 'account.email',
-      email: input.account.email,
+      email: account.email,
     });
   }
-  const passwordHash = await hashPassword(input.account.password);
+  const passwordHash = await hashPassword(account.password);
 
   const created = await prisma.$transaction(async (tx) => {
     const faculty = await tx.faculty.create({ data: facultyFields(input) });
     await tx.user.create({
       data: {
-        email,
+        email: account.email,
         password_hash: passwordHash,
         role: 'FACULTY',
         faculty_id: faculty.id,
@@ -176,7 +205,82 @@ export async function createFaculty(rawBody: unknown): Promise<FacultyDto> {
   return withUser ? toFacultyDto(withUser) : toFacultyDtoFromRow(created);
 }
 
-/** Strips the optional `account` block so only real Faculty columns are written. */
+export interface UnlinkedUserDto {
+  id: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
+/**
+ * Users that registered themselves but were never linked to a faculty record
+ * (faculty_id IS NULL). The Chair picks one of these when creating a faculty
+ * member with "use an existing account" instead of provisioning a new login.
+ * CHAIR / ACADEMIC_ADMIN accounts are excluded — only FACULTY-role signups.
+ */
+export async function listUnlinkedUsers(): Promise<{ users: UnlinkedUserDto[] }> {
+  const rows = await prisma.user.findMany({
+    where: { faculty_id: null, is_active: true, role: 'FACULTY' },
+    orderBy: { created_at: 'asc' },
+    select: { id: true, email: true, role: true, created_at: true },
+  });
+  return {
+    users: rows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      role: row.role,
+      created_at: row.created_at.toISOString(),
+    })),
+  };
+}
+
+/**
+ * Link an already-registered (unlinked) user to an EXISTING faculty record.
+ * Lets the Chair approve a self-registered account against a faculty row that
+ * was created earlier without any login (the "connect it later" path).
+ */
+export async function linkExistingUser(facultyId: string, rawBody: unknown): Promise<FacultyDto> {
+  const parsed = facultyExistingUserSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    throw ApiError.badRequest('Invalid request', parsed.error.flatten());
+  }
+  const faculty = await findActiveById(facultyId);
+  if (!faculty) {
+    throw ApiError.notFound('Faculty member not found');
+  }
+  const current = await findActiveWithUserById(facultyId);
+  if (current?.user) {
+    throw ApiError.conflict('FACULTY_ALREADY_LINKED', 'This faculty record already has a linked login', {
+      field: 'faculty',
+    });
+  }
+  const target = await prisma.user.findUnique({ where: { id: parsed.data.existing_user_id } });
+  if (!target) {
+    throw ApiError.notFound('User account not found');
+  }
+  if (!target.is_active) {
+    throw ApiError.conflict('USER_INACTIVE', 'That user account is deactivated', {
+      field: 'existing_user_id',
+    });
+  }
+  if (target.faculty_id) {
+    throw ApiError.conflict('USER_ALREADY_LINKED', 'That user account is already linked to a faculty record', {
+      field: 'existing_user_id',
+    });
+  }
+  await prisma.user.update({
+    where: { id: target.id },
+    data: { faculty_id: facultyId, role: 'FACULTY' },
+  });
+  const withUser = await findActiveWithUserById(facultyId);
+  // findActiveWithUserById just confirmed the row; fallback is defensive.
+  if (!withUser) {
+    throw ApiError.notFound('Faculty member not found');
+  }
+  return toFacultyDto(withUser);
+}
+
+/** Strips the optional `account`/`existing_user_id` blocks so only real Faculty columns are written. */
 function facultyFields(input: CreateFacultyInput): {
   employee_no: string;
   first_name: string;

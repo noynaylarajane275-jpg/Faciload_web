@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Landing } from './pages/Landing/Landing';
 import { LoginModal } from './components/auth/LoginModal';
+import { RegisterModal } from './components/auth/RegisterModal';
 import { SessionBootstrap } from './components/auth/SessionBootstrap';
 import { AppShell } from './layouts/AppShell';
 import { DashboardPage } from './pages/DashboardPage';
@@ -17,6 +18,7 @@ import { SectionsPage } from './pages/SectionsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { AccountSettingsPage } from './pages/AccountSettingsPage';
 import { NotAuthorizedPage } from './pages/NotAuthorizedPage';
+import { PendingApprovalPage } from './pages/PendingApprovalPage';
 import { RequireAuth } from './components/RequireAuth';
 import { ToastProvider } from './components/Toast';
 import { ALL_ROLES, MANAGEMENT_ROLES } from './config/navigation';
@@ -33,11 +35,14 @@ export function App(): JSX.Element {
       <SessionBootstrap>
         <ToastProvider>
         <LoginModal />
+        <RegisterModal />
         <Routes>
           {/* Public landing: full-bleed marketing layout (own nav/footer). */}
           <Route path="/" element={<Landing />} />
           {/* Direct-link entry: same landing base with modal open on mount. */}
           <Route path="/login" element={<Landing openLoginOnMount />} />
+          {/* Awaiting-approval screen for self-registered, not-yet-linked accounts. */}
+          <Route path="/pending-approval" element={<PendingApprovalPage />} />
           {/* Authenticated-app shell (nav + constrained content width). */}
           <Route element={<AppShell />}>
             <Route path="/not-authorized" element={<NotAuthorizedPage />} />

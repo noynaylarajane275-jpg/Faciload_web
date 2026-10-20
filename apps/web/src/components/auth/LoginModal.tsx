@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { loginRequest } from '../../lib/api';
 import { useAuthStore } from '../../store/auth.store';
 import { useUiStore } from '../../store/ui.store';
-
 const loginFormSchema = z.object({
   email: z.string().email('Enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
@@ -14,6 +13,7 @@ const loginFormSchema = z.object({
 export function LoginModal(): JSX.Element | null {
   const isOpen = useUiStore((s) => s.isLoginModalOpen);
   const closeLoginModal = useUiStore((s) => s.closeLoginModal);
+  const openRegisterModal = useUiStore((s) => s.openRegisterModal);
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
   const reduce = useReducedMotion();
@@ -58,6 +58,12 @@ export function LoginModal(): JSX.Element | null {
       const result = await loginRequest(parsed.data.email, parsed.data.password);
       login({ user: result.user, accessToken: result.accessToken, refreshToken: result.refreshToken });
       handleClose();
+      if (result.user.role === 'FACULTY' && !result.user.facultyId) {
+        // Self-registered but not yet linked to a faculty record — park them on
+        // the awaiting-approval screen instead of any data page.
+        navigate('/pending-approval', { replace: true });
+        return;
+      }
       // Faculty land directly on their own workload (FR-10); management keeps
       // the department dashboard as the entry point.
       navigate(result.user.role === 'FACULTY' ? '/workload' : '/dashboard', { replace: true });
@@ -187,6 +193,12 @@ export function LoginModal(): JSX.Element | null {
               <span aria-hidden="true" className="h-px flex-1 bg-glass-border" />
             </div>
             <p className="mt-3 text-center text-xs text-ink-300">
+              New here?{' '}
+              <button type="button" onClick={openRegisterModal} className="glass-link-dark font-semibold">
+                Create an account
+              </button>
+            </p>
+            <p className="mt-2 text-center text-xs text-ink-300">
               Having trouble? Contact your <span className="glass-link-dark">department administrator</span>.
             </p>
             </div>

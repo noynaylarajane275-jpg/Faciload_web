@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { uuidIdSchema } from './subject.validation.js';
 
 /** Shared UUID param validation (same contract as subject.validation.ts). */
 export { uuidIdSchema } from './subject.validation.js';
@@ -68,6 +69,10 @@ export const employmentStatusSchema = z.preprocess(
  * see their own schedule/workload. Mirrors the email/password rules in
  * user.validation.ts (valid email, password >= 8 chars). Absent = no account
  * (the historical default, kept so `user` stays null).
+ *
+ * `existing_user_id` is the alternative: link an already-registered (unlinked)
+ * User instead of creating a new one. Exactly one of `account` /
+ * `existing_user_id` may be provided.
  */
 export const facultyAccountSchema = z
   .object({
@@ -84,6 +89,10 @@ export const facultyAccountSchema = z
   })
   .strict();
 
+export const facultyExistingUserSchema = z.object({
+  existing_user_id: uuidIdSchema,
+});
+
 export const createFacultySchema = z
   .object({
     employee_no: presentString('Employee no', 40),
@@ -92,16 +101,30 @@ export const createFacultySchema = z
     rank: optionalText('Rank', 120),
     employment_status: employmentStatusSchema.default('FULL_TIME'),
     max_units: maxUnitsSchema.default(24),
-    // Opt-in: Chair may create a login for the faculty in the same call.
+    // Opt-in: Chair may create a login for the faculty in the same call…
     account: facultyAccountSchema.optional(),
+    // …or link an already-registered (unlinked) user account instead.
+    existing_user_id: uuidIdSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine((data) => !(data.account !== undefined && data.existing_user_id !== undefined), {
+    message: 'Provide either a new account or an existing user to link, not both',
+    path: ['existing_user_id'],
+  });
 
 export type CreateFacultyInput = z.infer<typeof createFacultySchema>;
 
-// Updates never provision a login — omit `account` so it can't slip in via PATCH.
-export const updateFacultySchema = createFacultySchema
-  .omit({ account: true })
+// Updates never provision a login - strip `account`/`existing_user_id` so they
+// can't slip in via PATCH (linking an existing user has its own endpoint).
+export const updateFacultySchema = z
+  .object({
+    employee_no: presentString('Employee no', 40),
+    first_name: presentString('First name', 120),
+    last_name: presentString('Last name', 120),
+    rank: optionalText('Rank', 120),
+    employment_status: employmentStatusSchema,
+    max_units: maxUnitsSchema,
+  })
   .partial()
   .strict()
   .refine((data) => Object.keys(data).length > 0, { message: 'Provide at least one field to update' });

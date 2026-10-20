@@ -1,6 +1,6 @@
 import { Router, type Request } from 'express';
 import { ApiError } from '../errors/apiError.js';
-import { requireAuth, requireRole } from '../middleware/auth.middleware.js';
+import { requireAuth, requireLinkedFaculty, requireRole } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { createRoom, getRoom, listRooms, updateRoom } from '../services/room.service.js';
 import { uuidIdSchema } from '../validation/room.validation.js';
@@ -19,6 +19,7 @@ function parseId(req: Request): string {
 roomRouter.get(
   '/rooms',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (req, res) => {
     res.status(200).json(await listRooms(req.query));
   }),
@@ -27,6 +28,7 @@ roomRouter.get(
 roomRouter.get(
   '/rooms/:id',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (req, res) => {
     res.status(200).json({ room: await getRoom(parseId(req)) });
   }),

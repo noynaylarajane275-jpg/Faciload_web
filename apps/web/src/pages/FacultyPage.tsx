@@ -5,12 +5,15 @@ import { useToast } from '../components/Toast';
 import {
   createFaculty,
   deleteFaculty,
+  linkFacultyUser,
   listFaculty,
+  listUnlinkedUsers,
   updateFaculty,
   type FacultyListResult,
   type FacultyMember,
   type FacultySortBy,
   type FacultySortDir,
+  type UnlinkedUser,
 } from '../lib/faculty';
 import {
   listWorkloadAssignments,
@@ -66,6 +69,9 @@ interface AccountFormValues {
   email: string;
   password: string;
 }
+
+/** Chair's choice for the faculty login: none / create new / link existing. */
+type AccountMode = 'none' | 'create' | 'link';
 
 const EMPTY_ACCOUNT: AccountFormValues = { enabled: false, email: '', password: '' };
 
@@ -123,7 +129,15 @@ function FacultyDirectory(): JSX.Element {
   // Opt-in login provisioning (create only).
   const [account, setAccount] = useState<AccountFormValues>(EMPTY_ACCOUNT);
   const [accountErrors, setAccountErrors] = useState<Partial<Record<'email' | 'password', string>>>({});
+  // Chair's login choice: none / create-new / link-existing self-registered.
+  const [accountMode, setAccountMode] = useState<AccountMode>('none');
+  const [unlinkedUsers, setUnlinkedUsers] = useState<UnlinkedUser[]>([]);
+  const [linkedUserId, setLinkedUserId] = useState('');
 
+  const [linkTarget, setLinkTarget] = useState<FacultyMember | null>(null);
+  const [linkUserId, setLinkUserId] = useState('');
+  const [linking, setLinking] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
   // Delete flow: removing a faculty member with an ACTIVE login also
   // deactivates that login, so the Chair must opt in explicitly
   // (backend enforces this with a 409 unless confirmLinkedUser).
@@ -199,6 +213,12 @@ function FacultyDirectory(): JSX.Element {
     setFormError(null);
     setAccount(EMPTY_ACCOUNT);
     setAccountErrors({});
+    setAccountMode('none');
+    setLinkedUserId('');
+    // Refresh the awaiting-approval pool so "link existing" offers fresh signups.
+    if (canEdit) {
+      void listUnlinkedUsers().then((res) => setUnlinkedUsers(res.users)).catch(() => undefined);
+    }
     setModal({ mode: 'create', faculty: null });
   }
 
@@ -215,7 +235,46 @@ function FacultyDirectory(): JSX.Element {
     setFormError(null);
     setAccount(EMPTY_ACCOUNT);
     setAccountErrors({});
+    setAccountMode('none');
+    setLinkedUserId('');
     setModal({ mode: 'edit', faculty });
+  }
+
+  /** Chair approval for a faculty row created without a login. */
+  function openLink(faculty: FacultyMember): void {
+    setLinkTarget(faculty);
+    setLinkUserId('');
+    setLinkError(null);
+    void listUnlinkedUsers().then((res) => setUnlinkedUsers(res.users)).catch(() => undefined);
+  }
+
+  function closeLink(): void {
+    if (linking) return;
+    setLinkTarget(null);
+    setLinkUserId('');
+    setLinkError(null);
+  }
+
+  async function handleLink(event: FormEvent): Promise<void> {
+    event.preventDefault();
+    if (!linkTarget) return;
+    if (!linkUserId) {
+      setLinkError('Choose a registered account to link.');
+      return;
+    }
+    setLinking(true);
+    setLinkError(null);
+    try {
+      await linkFacultyUser(linkTarget.id, linkUserId);
+      pushToast('success', 'Account linked — the faculty member can now sign in with full access.');
+      setLinkTarget(null);
+      setLinkUserId('');
+      setReloadKey((key) => key + 1);
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : 'Could not link the account.');
+    } finally {
+      setLinking(false);
+    }
   }
 
   function closeModal(): void {
@@ -276,10 +335,11 @@ function FacultyDirectory(): JSX.Element {
     setFormError(null);
     setSaving(true);
 
-    // Opt-in login (create only): validate the account block when the toggle is
-    // on, and attach it to the payload so the API provisions the linked login.
+    // Opt-in login (create only): either provision a brand-new login or link a
+    // self-registered (unlinked) account. The two are mutually exclusive.
     let accountPayload: { email: string; password: string } | undefined;
-    if (modal.mode === 'create' && account.enabled) {
+    let existingUserPayload: { existing_user_id: string } | undefined;
+    if (modal.mode === 'create' && accountMode === 'create') {
       const accountParsed = accountFormSchema.safeParse({
         email: account.email,
         password: account.password,
@@ -295,9 +355,22 @@ function FacultyDirectory(): JSX.Element {
       }
       accountPayload = accountParsed.data;
     }
+    if (modal.mode === 'create' && accountMode === 'link') {
+      if (!linkedUserId) {
+        setFormError('Choose a registered account to link.');
+        setSaving(false);
+        return;
+      }
+      existingUserPayload = { existing_user_id: linkedUserId };
+    }
     setAccountErrors({});
 
-    const payload = { ...parsed.data, rank: parsed.data.rank ?? null, ...(accountPayload ? { account: accountPayload } : {}) };
+    const payload = {
+      ...parsed.data,
+      rank: parsed.data.rank ?? null,
+      ...(accountPayload ? { account: accountPayload } : {}),
+      ...(existingUserPayload ? { existing_user_id: existingUserPayload.existing_user_id } : {}),
+    };
     try {
       if (modal.mode === 'create') {
         await createFaculty(payload);
@@ -305,7 +378,9 @@ function FacultyDirectory(): JSX.Element {
           'success',
           accountPayload
             ? `Faculty member created. Login: ${accountPayload.email}`
-            : 'Faculty member created.',
+            : existingUserPayload
+              ? 'Faculty member created and account linked.'
+              : 'Faculty member created.',
         );
       } else if (modal.mode === 'edit' && modal.faculty) {
         await updateFaculty(modal.faculty.id, payload);
@@ -474,6 +549,15 @@ function FacultyDirectory(): JSX.Element {
                         >
                           Edit
                         </button>
+                        {!faculty.user ? (
+                          <button
+                            type="button"
+                            onClick={() => openLink(faculty)}
+                            className="ml-3 text-primary-dark hover:underline"
+                          >
+                            Link account
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => openDelete(faculty)}
@@ -628,54 +712,101 @@ function FacultyDirectory(): JSX.Element {
           </div>
           {modal.mode === 'create' ? (
             <div className="rounded border border-slate-200 bg-slate-50 p-3">
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={account.enabled}
-                  onChange={(event) =>
-                    setAccount((a) => ({ ...a, enabled: event.target.checked }))
-                  }
-                />
-                Create a login account for this faculty
-              </label>
-              <p className="mt-1 text-xs text-slate-500">
-                They&apos;ll be able to sign in and see their own schedule &amp; workload
-                automatically.
-              </p>
-              {account.enabled ? (
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="faculty-account-email" className="block text-xs font-medium text-slate-700">
-                      Account email
-                    </label>
-                    <input
-                      id="faculty-account-email"
-                      type="email"
-                      autoComplete="off"
-                      value={account.email}
-                      onChange={(event) => setAccount((a) => ({ ...a, email: event.target.value }))}
+              <p className="text-sm font-medium text-slate-700">Login account</p>
+              <div className="mt-2 space-y-1.5" role="radiogroup" aria-label="Login account choice">
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="radio"
+                    name="faculty-account-mode"
+                    checked={accountMode === 'none'}
+                    onChange={() => setAccountMode('none')}
+                  />
+                  No login for now
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="radio"
+                    name="faculty-account-mode"
+                    checked={accountMode === 'create'}
+                    onChange={() => setAccountMode('create')}
+                  />
+                  Create a new login account
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="radio"
+                    name="faculty-account-mode"
+                    checked={accountMode === 'link'}
+                    onChange={() => setAccountMode('link')}
+                  />
+                  Use an existing registered account
+                </label>
+              </div>
+              {accountMode === 'create' ? (
+                <div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    They&apos;ll be able to sign in and see their own schedule &amp; workload automatically.
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="faculty-account-email" className="block text-xs font-medium text-slate-700">
+                        Account email
+                      </label>
+                      <input
+                        id="faculty-account-email"
+                        type="email"
+                        autoComplete="off"
+                        value={account.email}
+                        onChange={(event) => setAccount((a) => ({ ...a, email: event.target.value }))}
+                        className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
+                      />
+                      {accountErrors.email ? (
+                        <p className="mt-1 text-xs text-red-600">{accountErrors.email}</p>
+                      ) : null}
+                    </div>
+                    <div>
+                      <label htmlFor="faculty-account-password" className="block text-xs font-medium text-slate-700">
+                        Temporary password
+                      </label>
+                      <input
+                        id="faculty-account-password"
+                        type="text"
+                        autoComplete="off"
+                        value={account.password}
+                        onChange={(event) => setAccount((a) => ({ ...a, password: event.target.value }))}
+                        className="mt-1 w-full rounded border border-slate-300 px-3 py-2 font-mono"
+                      />
+                      {accountErrors.password ? (
+                        <p className="mt-1 text-xs text-red-600">{accountErrors.password}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              {accountMode === 'link' ? (
+                <div className="mt-3">
+                  <label htmlFor="faculty-link-user" className="block text-xs font-medium text-slate-700">
+                    Registered account (awaiting approval)
+                  </label>
+                  {unlinkedUsers.length === 0 ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      No registered accounts are waiting for approval right now.
+                    </p>
+                  ) : (
+                    <select
+                      id="faculty-link-user"
+                      value={linkedUserId}
+                      onChange={(event) => setLinkedUserId(event.target.value)}
                       className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
-                    />
-                    {accountErrors.email ? (
-                      <p className="mt-1 text-xs text-red-600">{accountErrors.email}</p>
-                    ) : null}
-                  </div>
-                  <div>
-                    <label htmlFor="faculty-account-password" className="block text-xs font-medium text-slate-700">
-                      Temporary password
-                    </label>
-                    <input
-                      id="faculty-account-password"
-                      type="text"
-                      autoComplete="off"
-                      value={account.password}
-                      onChange={(event) => setAccount((a) => ({ ...a, password: event.target.value }))}
-                      className="mt-1 w-full rounded border border-slate-300 px-3 py-2 font-mono"
-                    />
-                    {accountErrors.password ? (
-                      <p className="mt-1 text-xs text-red-600">{accountErrors.password}</p>
-                    ) : null}
-                  </div>
+                    >
+                      <option value="">Select an account…</option>
+                      {unlinkedUsers.map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.email}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -703,6 +834,71 @@ function FacultyDirectory(): JSX.Element {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={linkTarget !== null}
+        title={
+          linkTarget
+            ? `Link account — ${linkTarget.last_name}, ${linkTarget.first_name}`
+            : 'Link account'
+        }
+        onClose={closeLink}
+      >
+        {linkTarget ? (
+          <form onSubmit={handleLink} noValidate className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Connect a self-registered account to {linkTarget.first_name} {linkTarget.last_name} (
+              {linkTarget.employee_no}). They get full access on their next sign in.
+            </p>
+            <div>
+              <label htmlFor="link-existing-user" className="block text-sm font-medium text-slate-700">
+                Registered account (awaiting approval)
+              </label>
+              {unlinkedUsers.length === 0 ? (
+                <p className="mt-1 text-sm text-slate-500">
+                  No registered accounts are waiting for approval right now.
+                </p>
+              ) : (
+                <select
+                  id="link-existing-user"
+                  value={linkUserId}
+                  onChange={(event) => setLinkUserId(event.target.value)}
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
+                >
+                  <option value="">Select an account…</option>
+                  {unlinkedUsers.map((candidate) => (
+                    <option key={candidate.id} value={candidate.id}>
+                      {candidate.email}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            {linkError ? (
+              <p role="alert" className="text-sm text-red-600">
+                {linkError}
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={closeLink}
+                disabled={linking}
+                className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={linking || unlinkedUsers.length === 0}
+                className="rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
+              >
+                {linking ? 'Linking…' : 'Link account'}
+              </button>
+            </div>
+          </form>
+        ) : null}
       </Modal>
 
       <Modal

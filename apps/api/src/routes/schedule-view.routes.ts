@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { ApiError } from '../errors/apiError.js';
-import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireAuth, requireLinkedFaculty } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
   getFacultyScheduleView,
@@ -30,6 +30,7 @@ function parseId(value: string | undefined, label: string): string {
 scheduleViewRouter.get(
   '/schedule-views/section/:sectionId',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (req, res) => {
     res.status(200).json(await getSectionScheduleView(parseId(req.params.sectionId, 'section'), req.query));
   }),
@@ -38,6 +39,7 @@ scheduleViewRouter.get(
 scheduleViewRouter.get(
   '/schedule-views/faculty/:facultyId',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (req, res) => {
     const facultyId = parseId(req.params.facultyId, 'faculty');
     const user = req.user;
@@ -51,6 +53,7 @@ scheduleViewRouter.get(
 scheduleViewRouter.get(
   '/schedule-views/room/:roomId',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (req, res) => {
     res.status(200).json(await getRoomScheduleView(parseId(req.params.roomId, 'room'), req.query));
   }),
@@ -59,6 +62,7 @@ scheduleViewRouter.get(
 scheduleViewRouter.get(
   '/schedule-views/rooms-overview',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (req, res) => {
     res.status(200).json(await getRoomsOverview(req.query));
   }),

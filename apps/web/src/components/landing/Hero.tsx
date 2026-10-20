@@ -10,7 +10,7 @@ import { ArrowRightLongIcon } from './icons';
  * to the feature tabs.
  */
 export function Hero(): JSX.Element {
-  const openLoginModal = useUiStore((s) => s.openLoginModal);
+  const openRegisterModal = useUiStore((s) => s.openRegisterModal);
   const reduce = useReducedMotion();
   return (
     <section className="relative px-4 pb-16 pt-32 sm:px-6 sm:pt-36">
@@ -57,11 +57,11 @@ export function Hero(): JSX.Element {
         >
           <button
             type="button"
-            onClick={openLoginModal}
+            onClick={openRegisterModal}
             className="group w-full rounded-2xl bg-gradient-to-r from-faciload-500 to-faciload-700 px-8 py-4 text-base font-bold text-white shadow-xl shadow-faciload-950/40 transition-all hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-faciload-300 focus-visible:ring-offset-2 focus-visible:ring-offset-faciload-950 sm:w-auto"
           >
             <span className="flex items-center justify-center gap-3">
-              Log in
+              Get Started
               <ArrowRightLongIcon className="h-4 w-4 transition-transform group-hover:translate-x-1.5" />
             </span>
           </button>

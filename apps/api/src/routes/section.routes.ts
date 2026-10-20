@@ -1,6 +1,6 @@
 import { Router, type Request } from 'express';
 import { ApiError } from '../errors/apiError.js';
-import { requireAuth, requireRole } from '../middleware/auth.middleware.js';
+import { requireAuth, requireLinkedFaculty, requireRole } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
   createSection,
@@ -26,6 +26,7 @@ function parseId(req: Request): string {
 sectionRouter.get(
   '/sections',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (req, res) => {
     res.status(200).json(await listSections(req.query));
   }),
@@ -34,6 +35,7 @@ sectionRouter.get(
 sectionRouter.get(
   '/sections/:id',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (req, res) => {
     res.status(200).json({ section: await getSection(parseId(req)) });
   }),

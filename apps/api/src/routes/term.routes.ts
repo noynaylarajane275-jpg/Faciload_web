@@ -1,6 +1,6 @@
 import { Router, type Request } from 'express';
 import { ApiError } from '../errors/apiError.js';
-import { requireAuth, requireRole } from '../middleware/auth.middleware.js';
+import { requireAuth, requireLinkedFaculty, requireRole } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
   createTerm,
@@ -25,6 +25,7 @@ function parseId(req: Request): string {
 termRouter.get(
   '/terms',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (_req, res) => {
     res.status(200).json(await listTerms());
   }),
@@ -34,6 +35,7 @@ termRouter.get(
 termRouter.get(
   '/terms/active',
   requireAuth,
+  requireLinkedFaculty,
   asyncHandler(async (_req, res) => {
     res.status(200).json(await getActiveTerm());
   }),

@@ -53,5 +53,10 @@ export function RequireAuth({ children, allowedRoles }: RequireAuthProps): React
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/not-authorized" replace />;
   }
+  // Self-registered FACULTY accounts with no linked faculty record may only
+  // visit the awaiting-approval + account screens — never data pages.
+  if (user.role === 'FACULTY' && !user.facultyId && location.pathname !== '/pending-approval' && location.pathname !== '/account') {
+    return <Navigate to="/pending-approval" replace />;
+  }
   return children;
 }

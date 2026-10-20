@@ -20,6 +20,7 @@ const LINKS: Array<{ href: string; label: string }> = [
  */
 export function Nav(): JSX.Element {
   const openLoginModal = useUiStore((s) => s.openLoginModal);
+  const openRegisterModal = useUiStore((s) => s.openRegisterModal);
   const reduce = useReducedMotion();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -68,7 +69,7 @@ export function Nav(): JSX.Element {
           </button>
           <button
             type="button"
-            onClick={openLoginModal}
+            onClick={openRegisterModal}
             className="group relative overflow-hidden rounded-full bg-gradient-to-r from-faciload-700 to-faciload-900 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-faciload-800/30 transition-all hover:shadow-lg active:scale-95"
           >
             <span className="relative z-10 flex items-center gap-2">
@@ -110,12 +111,12 @@ export function Nav(): JSX.Element {
           <button
             type="button"
             onClick={() => {
-              openLoginModal();
+              openRegisterModal();
               setMobileOpen(false);
             }}
             className="w-full rounded-xl bg-faciload-800 py-3 text-center font-semibold text-white shadow-md"
           >
-            Log in / Sign up
+            Get Started
           </button>
         </div>
       )}

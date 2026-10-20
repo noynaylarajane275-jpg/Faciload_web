@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import {
+  hashPassword,
   isRefreshTokenRevoked,
   revokeRefreshToken,
   signAccessToken,
@@ -9,7 +10,7 @@ import {
   type AuthTokenPayload,
 } from '../services/auth.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { loginSchema, refreshSchema } from '../validation/auth.validation.js';
+import { loginSchema, refreshSchema, registerSchema } from '../validation/auth.validation.js';
 import { prisma } from '../config/prisma.js';
 
 export const authRouter = Router();
@@ -77,6 +78,55 @@ authRouter.post('/auth/login', asyncHandler(async (req: Request, res: Response) 
     accessToken: signAccessToken(payload),
     refreshToken: signRefreshToken(payload),
     user: toPublicUser(user),
+  });
+}));
+
+/**
+ * POST /api/auth/register — public self-registration.
+ *
+ * Creates a FACULTY-role User with `faculty_id = null` (and no faculty row).
+ * The account can sign in but `requireLinkedFaculty` blocks it from every
+ * data route until a Chair links it through Faculty Management. Returns the
+ * same shape as login (tokens + public user) so the client can sign the user
+ * straight in to the "awaiting approval" screen.
+ */
+authRouter.post('/auth/register', asyncHandler(async (req: Request, res: Response) => {
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid request body', details: parsed.error.flatten() },
+    });
+    return;
+  }
+
+  const email = parsed.data.email.toLowerCase();
+  const taken = await prisma.user.findUnique({ where: { email } });
+  if (taken) {
+    res.status(409).json({
+      error: { code: 'USER_EMAIL_IN_USE', message: `Email "${parsed.data.email}" is already in use` },
+    });
+    return;
+  }
+
+  const created = await prisma.user.create({
+    data: {
+      email,
+      password_hash: await hashPassword(parsed.data.password),
+      role: 'FACULTY',
+      faculty_id: null,
+      is_active: true,
+    },
+  });
+
+  const payload: AuthTokenPayload = {
+    userId: created.id,
+    role: 'FACULTY',
+    facultyId: null,
+  };
+  res.status(201).json({
+    accessToken: signAccessToken(payload),
+    refreshToken: signRefreshToken(payload),
+    user: toPublicUser(created),
   });
 }));
 

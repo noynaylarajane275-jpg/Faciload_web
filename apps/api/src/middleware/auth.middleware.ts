@@ -51,3 +51,28 @@ export function requireRole(...allowedRoles: Role[]): (req: Request, res: Respon
     next();
   };
 }
+
+/**
+ * Block FACULTY-role accounts that have no linked faculty record.
+ *
+ * Self-registered accounts are created with `faculty_id = null` on purpose:
+ * they may sign in (so they can see the "awaiting approval" screen) but must
+ * not read any department/faculty data until a Chair links them through
+ * Faculty Management. CHAIR / ACADEMIC_ADMIN are never gated by this check.
+ */
+export function requireLinkedFaculty(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+    return;
+  }
+  if (req.user.role === 'FACULTY' && !req.user.facultyId) {
+    res.status(403).json({
+      error: {
+        code: 'FACULTY_NOT_LINKED',
+        message: 'Your account is not linked to a faculty record yet. Ask the department chair to link it.',
+      },
+    });
+    return;
+  }
+  next();
+}

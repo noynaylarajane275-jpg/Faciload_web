@@ -9,7 +9,7 @@ import { useUiStore } from '../../store/ui.store';
  */
 export function CtaSection(): JSX.Element {
   const reduce = useReducedMotion();
-  const openLoginModal = useUiStore((s) => s.openLoginModal);
+  const openRegisterModal = useUiStore((s) => s.openRegisterModal);
   return (
     <section id="get-started" aria-labelledby="cta-title" className="px-4 sm:px-6">
       <div className="mx-auto mt-32 max-w-5xl">
@@ -40,10 +40,10 @@ export function CtaSection(): JSX.Element {
               </p>
               <button
                 type="button"
-                onClick={openLoginModal}
+                onClick={openRegisterModal}
                 className="rounded-2xl bg-white px-8 py-4 text-base font-extrabold text-faciload-900 shadow-xl transition-all hover:scale-105 hover:bg-faciload-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-faciload-800"
               >
-                Log in
+                Get Started
               </button>
             </div>
           </motion.div>
