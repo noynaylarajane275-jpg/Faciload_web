@@ -142,3 +142,75 @@ html {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ========================================================================
+   Print styles for the official Class Program document
+   Hides application chrome and formats the page to match the Excel workbook.
+   ======================================================================== */
+@media print {
+  /* Hide all application chrome */
+  aside, header, nav, .no-print, [aria-label="Navigation menu"],
+  [aria-label="Notifications"], .TermPicker, button, .btn, .toast,
+  .fixed, .absolute.z-50, .z-50 {
+    display: none !important;
+  }
+
+  /* Show the class program content */
+  main, .class-program-printable {
+    display: block !important;
+    width: 100%;
+    max-width: none;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Page setup: the default printed page stays landscape A4 (the Classroom
+     Utilization report relies on it). The Class Program document is a portrait
+     A4 form — the same paper the official workbook uses — so it opts into a
+     named page; browsers without named-page support fall back to landscape. */
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  .class-program-printable {
+    page: class-program-doc;
+  }
+  @page class-program-doc {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-family: Arial, sans-serif;
+    font-size: 10px;
+  }
+
+  /* Ensure borders render in print */
+  table {
+    border-collapse: collapse;
+  }
+
+  td, th {
+    border: 1px solid black;
+    padding: 2px;
+  }
+
+  /* Prevent page break inside class blocks */
+  .class-program-block {
+    page-break-inside: avoid;
+  }
+
+  /* The header (institution block + faculty fields) never splits across pages,
+     and the timetable starts on the same page as the header. */
+  .official-header {
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Timetable grid: avoid splitting rows across pages */
+  .timetable-grid tr, .timetable-grid td {
+    page-break-inside: avoid;
+  }
+}

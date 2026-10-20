@@ -30,6 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
   // Phase 1: Faculty Schedule is the single instructor grid. /workload stays as
   // a bookmark-compatible redirect (see App.tsx) but is no longer a nav item.
   { label: 'Faculty Schedule', path: '/views/faculty', icon: 'view-faculty', allowedRoles: ALL_ROLES, group: 'Workload & Scheduling' },
+  { label: 'Class Program', path: '/class-program', icon: 'schedule', allowedRoles: ALL_ROLES, group: 'Workload & Scheduling' },
   { label: 'Room Schedule', path: '/views/rooms', icon: 'view-rooms', allowedRoles: MANAGEMENT_ROLES, group: 'Workload & Scheduling' },
   { label: 'Workload Assignment', path: '/workload-assignment', icon: 'assignment', allowedRoles: MANAGEMENT_ROLES, group: 'Workload & Scheduling' },
   { label: 'Reports', path: '/reports', icon: 'reports', allowedRoles: MANAGEMENT_ROLES, group: 'Reports' },

@@ -246,14 +246,23 @@ describe('schedule-export — print layout', () => {
   it('leaves interior grid lines thin, so the half-hour rules stay visible', async () => {
     const buffer = await buildScheduleWorkbook({ ...base, slots: [] });
     const ws = await readBack(buffer);
-    const interior = ws.getCell(20, COL_FIRST_DAY + 1).border as
+    // Row 15 (10:00 AM) is plain interior — NOT row 19/20, which the reserved
+    // lunch band deliberately frames with medium rules like a section edge.
+    const interior = ws.getCell(15, COL_FIRST_DAY + 1).border as
       | { top?: { style?: string }; left?: { style?: string } }
       | undefined;
     expect(interior?.top?.style).toBe('thin');
     expect(interior?.left?.style).toBe('thin');
+
+    // The lunch band (12:00–1:00) is a labelled section boundary: its merged
+    // anchor carries medium rules top and bottom, matching the day-header band.
+    const lunch = ws.getCell(19, COL_FIRST_DAY + 1).border as
+      | { top?: { style?: string }; bottom?: { style?: string } }
+      | undefined;
+    expect(lunch?.top?.style).toBe('medium');
   });
 
-  it('prints portrait and centred on the page', async () => {
+  it('prints landscape and centred on the page', async () => {
     const buffer = await buildScheduleWorkbook({ ...base, slots: [] });
     // The page setup is written into the sheet XML, not the cell model, so read
     // it from the workbook the way Excel does.
@@ -263,7 +272,8 @@ describe('schedule-export — print layout', () => {
     const setup = (wb.getWorksheet('Schedule') as unknown as {
       pageSetup: { orientation?: string; horizontalCentered?: boolean; verticalCentered?: boolean };
     }).pageSetup;
-    expect(setup.orientation).toBe('portrait');
+    // Landscape so Mon–Sat plus the time gutter fit one page wide.
+    expect(setup.orientation).toBe('landscape');
     expect(setup.horizontalCentered).toBe(true);
     expect(setup.verticalCentered).toBe(true);
   });

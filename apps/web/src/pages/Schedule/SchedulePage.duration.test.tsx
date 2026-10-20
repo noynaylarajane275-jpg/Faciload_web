@@ -688,21 +688,24 @@ describe('SchedulePage — room-first flow (no unscoped view)', () => {
     // assert on placed-block role, not on the "IE 322" string.
         const placedBlocks = document.querySelectorAll('[aria-roledescription^="Scheduled class"]');
     expect(placedBlocks).toHaveLength(1);
-    expect((placedBlocks[0] as HTMLElement).textContent).toContain('IE 411');
+    // The card body shows the subject TITLE; the subject CODE rides on the
+    // block's aria-label (the accessible name of the scheduled class).
+    expect((placedBlocks[0] as HTMLElement).textContent).toContain('Methods Engineering');
+    expect((placedBlocks[0] as HTMLElement).getAttribute('aria-label')).toContain('IE 411');
   });
 
   it('switches rooms in place — re-scopes the grid without a reload and keeps the sidebar', async () => {
     twoRooms();
     render(<ToastProvider><SchedulePage /></ToastProvider>);
     await pickRoom('room-2');
-    expect(await screen.findByText('IE 411')).toBeInTheDocument();
+    expect(await screen.findByText('Methods Engineering')).toBeInTheDocument();
     const sidebar = await screen.findByText('IE 322 — LEC');
 
     await pickRoom('room-1');
     // room-1's block appears; room-2's is gone. Same mounted page (no reload),
     // and the sidebar's unassigned cards survive the switch.
-    expect(await screen.findByText('IE 322')).toBeInTheDocument();
-    expect(screen.queryByText('IE 411')).toBeNull();
+    expect(await screen.findByText('Plant Layout')).toBeInTheDocument();
+    expect(screen.queryByText('Methods Engineering')).toBeNull();
     expect(screen.getByText('IE 322 — LEC')).toBe(sidebar);
     // The header announces the active room.
     expect(screen.getByText(/Scheduling IE Room 1 for/)).toBeInTheDocument();
@@ -751,7 +754,7 @@ describe('SchedulePage — room-first flow (no unscoped view)', () => {
     twoRooms();
     render(<ToastProvider><SchedulePage /></ToastProvider>);
     await pickRoom('room-1');
-    expect(await screen.findByText('IE 322')).toBeInTheDocument();
+    expect(await screen.findByText('Plant Layout')).toBeInTheDocument();
 
     fireEvent.change(await screen.findByLabelText('Filter by faculty'), {
       target: { value: 'faculty-2' },
@@ -763,7 +766,7 @@ describe('SchedulePage — room-first flow (no unscoped view)', () => {
       expect(block).not.toBeNull();
       expect(block.className).toContain('opacity-20');
     });
-    expect(screen.queryByText('IE 411')).toBeNull();
+    expect(screen.queryByText('Methods Engineering')).toBeNull();
   });
 });
 
@@ -859,7 +862,8 @@ describe('SchedulePage — card color picker (Part 3)', () => {
     await screen.findByText('IE 322 — LEC');
 
     // Placed block keeps the long-standing blue default — no inline color.
-    const placed = screen.getByText('IE 322').closest('div[aria-roledescription]') as HTMLElement;
+    // The card body carries the subject title; the code is on the aria-label.
+    const placed = screen.getByText('Plant Layout').closest('div[aria-roledescription]') as HTMLElement;
     expect(placed.style.backgroundColor).toBe('');
   });
 

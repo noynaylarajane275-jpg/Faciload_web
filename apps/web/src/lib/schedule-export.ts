@@ -188,8 +188,8 @@ export const COL_TIME_DASH = 3;
 export const COL_TIME_END = 4;
 export const COL_FIRST_DAY = 5;
 
-const THIN = { style: 'thin' as const, color: { argb: 'FF000000' } };
-const MEDIUM = { style: 'medium' as const, color: { argb: 'FF000000' } };
+export const THIN = { style: 'thin' as const, color: { argb: 'FF000000' } };
+export const MEDIUM = { style: 'medium' as const, color: { argb: 'FF000000' } };
 
 /**
  * The olive-green day/time header band of the printed form, with the darker
@@ -293,13 +293,16 @@ export const SCHOOL_LOGO_CANDIDATES = [
 ];
 
 /**
- * Fetch the first logo candidate that actually loads.
+ * Fetch the first of the given URLs that actually loads (defaults to every
+ * known candidate).
  *
  * Returns null if none are present, so a missing asset degrades to a logo-less
  * sheet rather than a failed export.
  */
-export async function loadSchoolLogo(): Promise<ExportImage | null> {
-  for (const url of SCHOOL_LOGO_CANDIDATES) {
+export async function loadSchoolLogo(
+  urls: readonly string[] = SCHOOL_LOGO_CANDIDATES,
+): Promise<ExportImage | null> {
+  for (const url of urls) {
     const image = await loadLogoFromUrl(url);
     if (image) return image;
   }
