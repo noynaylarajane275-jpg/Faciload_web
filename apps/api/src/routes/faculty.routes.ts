@@ -24,9 +24,9 @@ function parseId(req: Request): string {
 }
 
 // Same shape as subject.routes.ts: reads for any authenticated role,
-// writes CHAIR-only (requirements.md §3). FACULTY-role accounts must also be
+// writes for Chair and Academic Admin. FACULTY-role accounts must also be
 // linked to a faculty record — unlinked (self-registered, awaiting approval)
-// accounts can sign in but see no department data until a Chair links them.
+// accounts can sign in but see no department data until a Chair or Admin links them.
 facultyRouter.get(
   '/faculty',
   requireAuth,
@@ -39,7 +39,7 @@ facultyRouter.get(
 facultyRouter.get(
   '/faculty/unlinked-users',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(200).json(await listUnlinkedUsers());
   }),
@@ -57,7 +57,7 @@ facultyRouter.get(
 facultyRouter.post(
   '/faculty',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(201).json({ faculty: await createFaculty(req.body) });
   }),
@@ -66,7 +66,7 @@ facultyRouter.post(
 facultyRouter.patch(
   '/faculty/:id',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(200).json({ faculty: await updateFaculty(parseId(req), req.body) });
   }),
@@ -80,7 +80,7 @@ facultyRouter.patch(
 facultyRouter.post(
   '/faculty/:id/link-user',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(200).json({ faculty: await linkExistingUser(parseId(req), req.body) });
   }),
@@ -89,7 +89,7 @@ facultyRouter.post(
 facultyRouter.delete(
   '/faculty/:id',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     await deleteFaculty(parseId(req), {
       confirmLinkedUser: req.query['confirmLinkedUser'],

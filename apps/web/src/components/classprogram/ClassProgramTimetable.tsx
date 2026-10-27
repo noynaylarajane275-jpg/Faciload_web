@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { DayOfWeek } from '../../lib/schedule-slots';
+import type { OtherFunctionType } from '../../lib/other-function-sessions';
 import {
   DAY_LABELS,
   formatTime12h,
@@ -20,12 +21,18 @@ export interface ClassProgramSlot {
   faculty_name: string;
   room_name: string | null;
   color: string | null;
+  otherFunctionType?: OtherFunctionType;
+  otherFunctionSessionId?: string;
+  designationName?: string;
+  designationSessionId?: string;
 }
 
 export interface ClassProgramTimetableProps {
   slots: ClassProgramSlot[];
   variant?: ClassProgramVariant;
   showLunchBreak?: boolean;
+  onDeleteOtherFunction?: (sessionId: string) => void;
+  onDeleteDesignationSession?: (sessionId: string) => void;
 }
 
 /**
@@ -167,6 +174,22 @@ function planDay(rows: GridRow[], slots: ClassProgramSlot[]): DayPlan {
 
 /** The lines the official block shows: subject, section, faculty, room. */
 function blockLines(slot: ClassProgramSlot, variant: ClassProgramVariant): string[] {
+  if (slot.otherFunctionType) {
+    const typeLabel = {
+      RESEARCH: 'Research',
+      EXTENSION: 'Extension',
+      IMP: 'IMP',
+      CONSULTATION: 'Consultation',
+    }[slot.otherFunctionType];
+    return [slot.subject_title === typeLabel
+      ? typeLabel
+      : `${typeLabel}: ${slot.subject_title}`];
+  }
+  if (slot.designationName) {
+    return [slot.subject_title === slot.designationName
+      ? slot.designationName
+      : `${slot.designationName}: ${slot.subject_title}`];
+  }
   const lines: string[] = [slot.subject_code];
   if (variant === 'faculty') {
     lines.push(slot.section_name ?? '');
@@ -183,6 +206,8 @@ export function ClassProgramTimetable({
   slots,
   variant = 'faculty',
   showLunchBreak = true,
+  onDeleteOtherFunction,
+  onDeleteDesignationSession,
 }: ClassProgramTimetableProps): JSX.Element {
   const rows = useMemo(() => buildGridRows(showLunchBreak), [showLunchBreak]);
   const dayPlans = useMemo(() => {
@@ -270,9 +295,37 @@ export function ClassProgramTimetable({
                               slotIndex > 0 ? 'mt-1 border-t border-black/40 pt-1' : undefined
                             }
                           >
-                            {blockLines(slot, variant).map((line, lineIndex) => (
-                              <div key={lineIndex}>{line}</div>
-                            ))}
+                            <div>
+                              {blockLines(slot, variant).map((line, lineIndex) => (
+                                <div key={lineIndex}>{line}</div>
+                              ))}
+                              {slot.otherFunctionSessionId && onDeleteOtherFunction && (
+                                <button
+                                  type="button"
+                                  aria-label={`Delete ${slot.subject_title} session`}
+                                  onClick={() => {
+                                    const sessionId = slot.otherFunctionSessionId;
+                                    if (sessionId) onDeleteOtherFunction(sessionId);
+                                  }}
+                                  className="no-print mt-1 rounded border border-rose-300 px-1 text-[9px] text-rose-700 hover:bg-rose-50"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                              {slot.designationSessionId && onDeleteDesignationSession && (
+                                <button
+                                  type="button"
+                                  aria-label={`Delete ${slot.subject_title} designation session`}
+                                  onClick={() => {
+                                    const sessionId = slot.designationSessionId;
+                                    if (sessionId) onDeleteDesignationSession(sessionId);
+                                  }}
+                                  className="no-print mt-1 rounded border border-rose-300 px-1 text-[9px] text-rose-700 hover:bg-rose-50"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </td>

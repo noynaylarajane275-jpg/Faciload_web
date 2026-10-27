@@ -1,5 +1,6 @@
 import type { FacultyMember } from '../../lib/faculty';
 import type { Term } from '../../lib/terms';
+import type { OtherFunctionType } from '../../lib/other-function-sessions';
 
 export interface WorkloadSummaryProps {
   faculty?: FacultyMember | null;
@@ -8,10 +9,12 @@ export interface WorkloadSummaryProps {
   labHrs: number;
   totalHrs: number;
   numPreparations: number;
+  otherFunctionTotals?: Record<OtherFunctionType, number>;
   serviceCredits?: number;
   teachingOverload?: number;
   totalStudents?: number;
   otherFunctions?: { research: number; extension: number; designation: number };
+  designations?: Array<{ id: string; name: string; totalHours: number }>;
 }
 
 export function WorkloadSummary({
@@ -21,12 +24,33 @@ export function WorkloadSummary({
   labHrs = 0,
   totalHrs = 0,
   numPreparations = 0,
+  otherFunctionTotals = {
+    RESEARCH: 0,
+    EXTENSION: 0,
+    IMP: 0,
+    CONSULTATION: 0,
+  },
   serviceCredits,
   teachingOverload,
   totalStudents,
   otherFunctions,
+  designations = [],
 }: WorkloadSummaryProps): JSX.Element {
-  const grandTotal = totalHrs;
+  const otherFunctionTotal = Object.values(otherFunctionTotals).reduce(
+    (sum, hours) => sum + hours,
+    0,
+  );
+  const grandTotal = totalHrs + otherFunctionTotal;
+  const designationTotal = designations.reduce(
+    (sum, designation) => sum + designation.totalHours,
+    0,
+  );
+  const otherFunctionRows: Array<[OtherFunctionType, string]> = [
+    ['RESEARCH', 'Research'],
+    ['EXTENSION', 'Extension'],
+    ['IMP', 'IMP'],
+    ['CONSULTATION', 'Consultation'],
+  ];
 
   return (
     <div className="space-y-2">
@@ -74,20 +98,21 @@ export function WorkloadSummary({
         <thead>
           <tr className="border-b border-black">
             <th className="text-left pb-1 font-bold">B. Other Functions:</th>
+            <th className="text-center pb-1 font-bold">Hours/Wk</th>
             <th className="text-left pb-1 font-bold">Total Number of Students:</th>
           </tr>
         </thead>
         <tbody>
-          <tr className="border-b border-black">
-            <td className="py-1">Research</td>
-            <td className="py-1">{totalStudents ?? 0}</td>
-          </tr>
-          <tr className="border-b border-black">
-            <td className="py-1">Extension</td>
-            <td className="py-1" />
-          </tr>
+          {otherFunctionRows.map(([type, label]) => (
+            <tr key={type} className="border-b border-black">
+              <td className="py-1">{label}</td>
+              <td className="py-1 text-center">{otherFunctionTotals[type]}</td>
+              <td className="py-1">{type === 'RESEARCH' ? totalStudents ?? 0 : ''}</td>
+            </tr>
+          ))}
           <tr>
             <td className="py-1 font-bold">Sub-Total</td>
+            <td className="py-1 text-center font-bold">{otherFunctionTotal}</td>
             <td className="py-1" />
           </tr>
         </tbody>
@@ -97,14 +122,19 @@ export function WorkloadSummary({
         <thead>
           <tr className="border-b border-black">
             <th className="text-left pb-1 font-bold">C. Designation</th>
+            <th className="text-center pb-1 font-bold">Hours/Wk</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td className="py-1" />
-          </tr>
+          {designations.map((designation) => (
+            <tr key={designation.id} className="border-b border-black">
+              <td className="py-1">{designation.name}</td>
+              <td className="py-1 text-center">{designation.totalHours}</td>
+            </tr>
+          ))}
           <tr>
             <td className="py-1 font-bold">Sub-Total</td>
+            <td className="py-1 text-center font-bold">{designationTotal}</td>
           </tr>
         </tbody>
       </table>
@@ -113,7 +143,7 @@ export function WorkloadSummary({
         <tbody>
           <tr className="border-t border-black">
             <td className="py-1 font-bold">Grand Total (A+B+C)</td>
-            <td className="text-center py-1 font-bold">{grandTotal}</td>
+            <td className="text-center py-1 font-bold">{grandTotal + designationTotal}</td>
           </tr>
         </tbody>
       </table>

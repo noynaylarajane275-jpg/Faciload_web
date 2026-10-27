@@ -158,6 +158,64 @@ The actual weekly-grid placement(s) for a workload assignment. One assignment ca
 
 ---
 
+### Entity: OtherFunctionSession
+
+A faculty member's recurring weekly Research, Extension, IMP, or Consultation
+session for an academic term. These sessions share the class schedule's weekday
+and time grid and cannot overlap that faculty member's classes or other
+function sessions.
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| id | UUID | Yes | auto | Primary key |
+| faculty_id | UUID (FK) | Yes | — | References Faculty |
+| term_id | UUID (FK) | Yes | — | References AcademicTerm |
+| function_type | enum(`RESEARCH`, `EXTENSION`, `IMP`, `CONSULTATION`) | Yes | — | Enforced by API validation |
+| title | string | Yes | — | Session description |
+| day_of_week | enum(`MON`…`FRI`) | Yes | — | Recurring weekday |
+| start_time | time | Yes | — | Between 7:00 AM and 7:00 PM; not during lunch |
+| end_time | time | Yes | — | At least one hour after `start_time`, by 7:00 PM |
+| created_at | timestamp (UTC) | Yes | now() | |
+| updated_at | timestamp (UTC) | Yes | now() | |
+
+---
+
+### Entity: FacultyDesignation
+
+An Academic Administrator assigns named designations to a faculty member for
+an academic term. Faculty can create recurring sessions only for designations
+assigned to their own profile.
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| id | UUID | Yes | auto | Primary key |
+| faculty_id | UUID (FK) | Yes | — | References Faculty |
+| term_id | UUID (FK) | Yes | — | References AcademicTerm |
+| name | string | Yes | — | Unique per faculty member and term |
+| created_at | timestamp (UTC) | Yes | now() | |
+| updated_at | timestamp (UTC) | Yes | now() | |
+
+---
+
+### Entity: DesignationSession
+
+A faculty member's recurring weekly session attached to one of their assigned
+designations. Sessions must fit the weekday class-program grid and cannot
+overlap classes, OtherFunctionSession entries, or other designation sessions.
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| id | UUID | Yes | auto | Primary key |
+| designation_id | UUID (FK) | Yes | — | References FacultyDesignation |
+| title | string | Yes | — | Session description |
+| day_of_week | enum(`MON`…`FRI`) | Yes | — | Recurring weekday |
+| start_time | time | Yes | — | Between 7:00 AM and 7:00 PM; not during lunch |
+| end_time | time | Yes | — | Must be after `start_time`; no minimum duration |
+| created_at | timestamp (UTC) | Yes | now() | |
+| updated_at | timestamp (UTC) | Yes | now() | |
+
+---
+
 ## 3. Relationships
 
 ```text
@@ -166,6 +224,8 @@ User
 
 Faculty
  └── has many WorkloadAssignment
+ └── has many OtherFunctionSession
+ └── has many FacultyDesignation
 
 Subject
  └── has many WorkloadAssignment
@@ -175,6 +235,8 @@ Section
 
 AcademicTerm
  └── has many WorkloadAssignment
+ └── has many OtherFunctionSession
+ └── has many FacultyDesignation
 
 WorkloadAssignment
  ├── belongs to Faculty
@@ -187,6 +249,18 @@ ScheduleSlot
  ├── belongs to WorkloadAssignment
  └── belongs to Room (optional)
 
+OtherFunctionSession
+ ├── belongs to Faculty
+ └── belongs to AcademicTerm
+
+FacultyDesignation
+ ├── belongs to Faculty
+ ├── belongs to AcademicTerm
+ └── has many DesignationSession
+
+DesignationSession
+ └── belongs to FacultyDesignation
+
 Room
  └── has many ScheduleSlot
 ```
@@ -196,14 +270,16 @@ Room
 ## 4. Constraints
 
 - **Primary keys:** UUID on every entity.
-- **Foreign keys:** `User.faculty_id → Faculty.id`; `WorkloadAssignment.faculty_id → Faculty.id`; `WorkloadAssignment.subject_id → Subject.id`; `WorkloadAssignment.section_id → Section.id`; `WorkloadAssignment.term_id → AcademicTerm.id`; `ScheduleSlot.workload_assignment_id → WorkloadAssignment.id`; `ScheduleSlot.room_id → Room.id`.
-- **Unique constraints:** `User.email`; `Faculty.employee_no`; `Subject.code`; `Room.name`; `Section(year_level, name)`; `AcademicTerm(school_year, semester)`; `WorkloadAssignment(faculty_id, subject_id, section_id, term_id)`.
+- **Foreign keys:** `User.faculty_id → Faculty.id`; `WorkloadAssignment.faculty_id → Faculty.id`; `WorkloadAssignment.subject_id → Subject.id`; `WorkloadAssignment.section_id → Section.id`; `WorkloadAssignment.term_id → AcademicTerm.id`; `ScheduleSlot.workload_assignment_id → WorkloadAssignment.id`; `ScheduleSlot.room_id → Room.id`; `OtherFunctionSession.faculty_id → Faculty.id`; `OtherFunctionSession.term_id → AcademicTerm.id`; `FacultyDesignation.faculty_id → Faculty.id`; `FacultyDesignation.term_id → AcademicTerm.id`; `DesignationSession.designation_id → FacultyDesignation.id`.
+- **Unique constraints:** `User.email`; `Faculty.employee_no`; `Subject.code`; `Room.name`; `Section(year_level, name)`; `AcademicTerm(school_year, semester)`; `WorkloadAssignment(faculty_id, subject_id, section_id, term_id)`; `FacultyDesignation(faculty_id, term_id, name)`.
 - **Required fields:** as marked `Yes` in each entity table above.
 - **Check constraints:** `ScheduleSlot.end_time > start_time`; `Faculty.max_units > 0`; `Subject.units > 0`.
 - **Delete behavior:**
   - `Faculty`, `Subject`, `Room` → soft delete (or restrict) when referenced by any `WorkloadAssignment`/`ScheduleSlot`, so historical schedules and workload reports are never orphaned.
   - `WorkloadAssignment` → soft delete; deleting it cascades a soft/hard delete to its `ScheduleSlot` rows.
   - `AcademicTerm`, `Section` → restrict deletion if any `WorkloadAssignment` references them.
+  - `OtherFunctionSession` → hard delete when its faculty profile or academic term is deleted.
+  - `FacultyDesignation` → hard delete when its faculty profile or academic term is deleted; assigned sessions cascade with it.
 
 ---
 
@@ -216,14 +292,17 @@ Room
 - `WorkloadAssignment.term_id` (filtering the active term)
 - `ScheduleSlot.room_id, day_of_week` (composite — room-conflict checks)
 - `ScheduleSlot.workload_assignment_id, day_of_week` (composite — faculty-conflict checks)
+- `OtherFunctionSession.faculty_id, term_id, day_of_week` (faculty's term sessions and conflict checks)
+- `FacultyDesignation.faculty_id, term_id` (assigned designation lookups)
+- `DesignationSession.designation_id, day_of_week` (designation sessions and conflict checks)
 
-Do not create additional indexes beyond these — the tables are small (department-scale data), so extra indexes add write overhead without a meaningful read benefit.
+Keep indexes focused on the department's common lookups and conflict checks; the tables are small, so avoid indexes without a clear query need.
 
 ---
 
 ## 6. Timestamps
 
-All entities include `created_at` and `updated_at`, stored in UTC. `ScheduleSlot.start_time`/`end_time` are stored as local wall-clock time (department operates in a single timezone), not UTC, since they represent a recurring weekly slot rather than a fixed instant.
+All entities include `created_at` and `updated_at`, stored in UTC. `ScheduleSlot.start_time`/`end_time` and `OtherFunctionSession.start_time`/`end_time` are stored as local wall-clock time (department operates in a single timezone), not UTC, since they represent recurring weekly slots rather than fixed instants.
 
 ---
 
@@ -233,7 +312,7 @@ All entities include `created_at` and `updated_at`, stored in UTC. `ScheduleSlot
 
 Soft-deleted records are excluded from active selectors (faculty rosters, subject catalog dropdowns, current-term workload views) by default, and only included when a query explicitly asks for historical/archived data (e.g. a past-term report).
 
-`Room` and `ScheduleSlot` are hard-deleted, since a removed room or an edited/cancelled slot has no standalone reporting value once its parent `WorkloadAssignment` is preserved.
+`Room`, `ScheduleSlot`, and `OtherFunctionSession` are hard-deleted, since a removed resource or an edited/cancelled session has no standalone reporting value once its parent data is preserved.
 
 ---
 
@@ -273,5 +352,5 @@ The current Prisma schema also includes these fields/features:
 - `ScheduleSlot.session_type` is `LECTURE` or `LAB`.
 - The current `end_time > start_time` rule is enforced by API validation/service logic for SQLite. A database-level check or PostgreSQL `EXCLUDE` constraint remains a future production hardening option.
 - `PATCH /api/rooms/:id` also toggles `is_under_maintenance`.
-- `POST /api/schedule-slots/:id/confirm-override` is the Chair-only explicit override path after a conflict response.
+- `POST /api/schedule-slots/:id/confirm-override` is available to Chairs and Academic Admins as the explicit override path after a conflict response.
 - `GET /api/schedule-views/*` provides section, faculty, room, and rooms-overview read views; Faculty callers are restricted to their own faculty schedule where applicable.

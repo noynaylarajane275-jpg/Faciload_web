@@ -157,7 +157,7 @@ export function App(): JSX.Element {
                 (create / edit / delete + opt-in login accounts). Kept as its
                 own route so /faculty stays strictly read-only. */
             /* Phase 1: single /faculty route renders the directory; management
-               controls are role-gated inside the component (CHAIR-only), so the
+               controls are role-gated inside the component (management-only), so the
                separate /faculty-management path redirects here for bookmarks. */}
             <Route
               path="/faculty-management"
@@ -191,4 +191,3 @@ export function App(): JSX.Element {
     </BrowserRouter>
   );
 }
-

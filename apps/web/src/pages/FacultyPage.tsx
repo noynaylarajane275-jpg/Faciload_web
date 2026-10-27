@@ -20,6 +20,7 @@ import {
   type WorkloadAssignment,
 } from '../lib/workload-assignments';
 import { useAuthStore } from '../store/auth.store';
+import { isManagementRole } from '../config/navigation';
 
 // Mirrors apps/api/src/validation/faculty.validation.ts: required names,
 // optional rank, FULL_TIME|PART_TIME status, integer max_units in 1..99.
@@ -70,7 +71,7 @@ interface AccountFormValues {
   password: string;
 }
 
-/** Chair's choice for the faculty login: none / create new / link existing. */
+/** Management-role choice for the faculty login: none / create new / link existing. */
 type AccountMode = 'none' | 'create' | 'link';
 
 const EMPTY_ACCOUNT: AccountFormValues = { enabled: false, email: '', password: '' };
@@ -105,12 +106,12 @@ const SEARCH_DEBOUNCE_MS = 300;
 /**
  * Shared faculty directory. Phase 1: single management-capable directory.
  * Read-only vs write is decided by role inside the component
- * (`canEdit = user?.role === 'CHAIR'`), not by which route rendered it.
+ * (`canEdit`), not by which route rendered it.
  */
 function FacultyDirectory(): JSX.Element {
   const user = useAuthStore((s) => s.user);
   const { pushToast } = useToast();
-  const canEdit = user?.role === 'CHAIR';
+  const canEdit = isManagementRole(user?.role);
 
   const [result, setResult] = useState<FacultyListResult | null>(null);
   const [status, setStatus] = useState<'loading' | 'error' | 'ready'>('loading');
@@ -129,7 +130,7 @@ function FacultyDirectory(): JSX.Element {
   // Opt-in login provisioning (create only).
   const [account, setAccount] = useState<AccountFormValues>(EMPTY_ACCOUNT);
   const [accountErrors, setAccountErrors] = useState<Partial<Record<'email' | 'password', string>>>({});
-  // Chair's login choice: none / create-new / link-existing self-registered.
+  // Management-role login choice: none / create-new / link-existing self-registered.
   const [accountMode, setAccountMode] = useState<AccountMode>('none');
   const [unlinkedUsers, setUnlinkedUsers] = useState<UnlinkedUser[]>([]);
   const [linkedUserId, setLinkedUserId] = useState('');
@@ -139,7 +140,7 @@ function FacultyDirectory(): JSX.Element {
   const [linking, setLinking] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
   // Delete flow: removing a faculty member with an ACTIVE login also
-  // deactivates that login, so the Chair must opt in explicitly
+  // deactivates that login, so a manager must opt in explicitly
   // (backend enforces this with a 409 unless confirmLinkedUser).
   const [deletingFaculty, setDeletingFaculty] = useState<FacultyMember | null>(null);
   const [confirmLinkedUser, setConfirmLinkedUser] = useState(false);
@@ -240,7 +241,7 @@ function FacultyDirectory(): JSX.Element {
     setModal({ mode: 'edit', faculty });
   }
 
-  /** Chair approval for a faculty row created without a login. */
+  /*  * Management approval for a faculty row created without a login. */
   function openLink(faculty: FacultyMember): void {
     setLinkTarget(faculty);
     setLinkUserId('');
@@ -1059,8 +1060,6 @@ function SortButton({
     </button>
   );
 }
-
-
 
 
 

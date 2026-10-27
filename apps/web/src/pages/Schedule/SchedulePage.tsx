@@ -28,6 +28,7 @@ import { Modal } from '../../components/Modal';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useToast } from '../../components/Toast';
 import { useAuthStore } from '../../store/auth.store';
+import { isManagementRole } from '../../config/navigation';
 import { selectSelectedTerm, useTermStore } from '../../store/term.store';
 import { CONFLICT_LABELS, toOverrideCandidate } from './schedule-conflict';
 import {
@@ -209,7 +210,7 @@ export function SchedulePage(): JSX.Element {
   const user = useAuthStore((s) => s.user);
   const { pushToast } = useToast();
   const reduce = useReducedMotion();
-  const canEdit = user?.role === 'CHAIR';
+  const canEdit = isManagementRole(user?.role);
 
   // Term (shared with the header selector).
   const termStatus = useTermStore((s) => s.status);
@@ -337,7 +338,7 @@ export function SchedulePage(): JSX.Element {
   const [exporting, setExporting] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  // Schedule reset (Chair-only): clear placed blocks for the whole term, one
+  // Schedule reset (management-only): clear placed blocks for the whole term, one
   // faculty, or the selected room — always gated by the Chair's password.
   const [resetOpen, setResetOpen] = useState(false);
   const [resetScope, setResetScope] = useState<ResetScope>('all');
@@ -2249,4 +2250,3 @@ export function ConflictDetailsList({ details }: { details: ConflictDetails | nu
     </ul>
   );
 }
-

@@ -23,6 +23,7 @@ import {
   INSTITUTION_LINES,
   officialTermLabel,
 } from '../components/classprogram/OfficialHeader';
+import type { OtherFunctionType } from './other-function-sessions';
 
 /**
  * Official "INSTRUCTOR'S CLASS PROGRAM" Excel builder.
@@ -63,16 +64,18 @@ export const ROW_TEACHING_SUBTOTAL = 49;
 export const ROW_OTHER_FUNCTIONS = 51;
 export const ROW_RESEARCH = 52;
 export const ROW_EXTENSION = 53;
-export const ROW_OTHER_SUBTOTAL = 54;
-export const ROW_DESIGNATION = 56;
-export const ROW_DESIGNATION_SUBTOTAL = 59;
-export const ROW_GRAND_TOTAL = 61;
-export const ROW_APPROVAL_HEADER = 63;
-export const ROW_PREPARED = 64;
-export const ROW_REVIEWED = 65;
-export const ROW_VERIFIED = 66;
-export const ROW_APPROVED = 67;
-export const ROW_EFFECTIVE = 68;
+export const ROW_IMP = 54;
+export const ROW_CONSULTATION = 55;
+export const ROW_OTHER_SUBTOTAL = 56;
+export const ROW_DESIGNATION = 58;
+export const ROW_DESIGNATION_SUBTOTAL = 61;
+export const ROW_GRAND_TOTAL = 63;
+export const ROW_APPROVAL_HEADER = 65;
+export const ROW_PREPARED = 66;
+export const ROW_REVIEWED = 67;
+export const ROW_VERIFIED = 68;
+export const ROW_APPROVED = 69;
+export const ROW_EFFECTIVE = 70;
 
 export const DAY_START_HOUR = 7;
 export const LUNCH_START_HOUR = 12;
@@ -126,7 +129,9 @@ export function rowForMinutes(totalMinutes: number): number {
 }
 
 /** True when a slot can be drawn (inside the grid, never across lunch). */
-function isDrawable(slot: ScheduleSlot): boolean {
+function isDrawable(
+  slot: Pick<ScheduleSlot, 'day_of_week' | 'start_time' | 'end_time'>,
+): boolean {
   if (!OFFICIAL_DAYS.includes(slot.day_of_week)) return false;
   const start = toMinutes(slot.start_time);
   const end = toMinutes(slot.end_time);
@@ -138,6 +143,10 @@ function isDrawable(slot: ScheduleSlot): boolean {
 function toMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number);
   return (hours ?? 0) * 60 + (minutes ?? 0);
+}
+
+function roundHours(hours: number): number {
+  return Math.round(hours * 100) / 100;
 }
 
 /** The four lines the official block shows: subject, section, faculty, room. */
@@ -161,6 +170,34 @@ export interface ClassProgramWorkload {
   labHrs: number;
   numPreparations: number;
   totalStudents?: number;
+  assignments?: ClassProgramWorkloadAssignment[];
+  otherFunctionTotals?: Record<OtherFunctionType, number>;
+  designationTotals?: Array<{ name: string; totalHours: number }>;
+}
+
+export interface ClassProgramWorkloadAssignment {
+  subjectCode: string;
+  subjectTitle: string;
+  sectionLabel: string;
+  facultyName: string;
+  lectureHrs: number;
+  labHrs: number;
+}
+
+export interface ClassProgramOtherFunctionSession {
+  functionType: OtherFunctionType;
+  title: string;
+  day_of_week: DayOfWeek;
+  start_time: string;
+  end_time: string;
+}
+
+export interface ClassProgramDesignationSession {
+  designationName: string;
+  title: string;
+  day_of_week: DayOfWeek;
+  start_time: string;
+  end_time: string;
 }
 
 export interface ClassProgramExportOptions {
@@ -169,6 +206,8 @@ export interface ClassProgramExportOptions {
   /** Active term - drives the "Second Sem., S.Y." line. */
   schoolYear?: string | null;
   slots: ScheduleSlot[];
+  otherFunctionSessions?: ClassProgramOtherFunctionSession[];
+  designationSessions?: ClassProgramDesignationSession[];
   workload?: ClassProgramWorkload | null;
   department?: string;
   college?: string;
@@ -190,6 +229,8 @@ export async function buildClassProgramWorkbook(
     faculty = null,
     schoolYear = null,
     slots,
+    otherFunctionSessions = [],
+    designationSessions = [],
     workload = null,
     department = DEFAULT_DEPARTMENT,
     college = DEFAULT_COLLEGE,
@@ -214,6 +255,35 @@ export async function buildClassProgramWorkbook(
       margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.25, header: 0, footer: 0 },
     },
   });
+  const workloadAssignments = workload?.assignments;
+  const workloadRowStart = ROW_TEACHING_LOAD + 2;
+  const teachingSubtotalRow = workloadAssignments
+    ? workloadRowStart + workloadAssignments.length
+    : ROW_TEACHING_SUBTOTAL;
+  const otherFunctionSectionShift = Math.max(
+    0,
+    teachingSubtotalRow - ROW_OTHER_FUNCTIONS + 1,
+  );
+  const designationTotals = workload?.designationTotals ?? [];
+  const designationSectionShift = Math.max(0, designationTotals.length - 2);
+  if (otherFunctionSectionShift > 0) {
+    ws.spliceRows(
+      ROW_OTHER_FUNCTIONS,
+      0,
+      ...Array.from({ length: otherFunctionSectionShift }, () => []),
+    );
+  }
+  if (designationSectionShift > 0) {
+    ws.spliceRows(
+      ROW_DESIGNATION_SUBTOTAL + otherFunctionSectionShift,
+      0,
+      ...Array.from({ length: designationSectionShift }, () => []),
+    );
+  }
+  const expandedRow = (row: number): number =>
+    row +
+    (row >= ROW_OTHER_FUNCTIONS ? otherFunctionSectionShift : 0) +
+    (row >= ROW_DESIGNATION_SUBTOTAL ? designationSectionShift : 0);
 
   ws.columns = [
     { width: 18.33 }, // A - labels / time gutter (official width)
@@ -353,6 +423,45 @@ export async function buildClassProgramWorkbook(
     anchor.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     anchor.border = { top: MEDIUM, bottom: MEDIUM, left: THIN, right: THIN };
   }
+  const otherFunctionLabels: Record<OtherFunctionType, string> = {
+    RESEARCH: 'Research',
+    EXTENSION: 'Extension',
+    IMP: 'IMP',
+    CONSULTATION: 'Consultation',
+  };
+  for (const session of otherFunctionSessions) {
+    const col = dayColumn.get(session.day_of_week);
+    if (!col || !isDrawable(session)) continue;
+    const topRow = rowForMinutes(toMinutes(session.start_time));
+    const bottomRow = rowForMinutes(toMinutes(session.end_time) - 1);
+    if (bottomRow <= topRow) continue;
+
+    if (bottomRow > topRow) ws.mergeCells(topRow, col, bottomRow, col);
+    const anchor = ws.getCell(topRow, col);
+    const typeLabel = otherFunctionLabels[session.functionType];
+    anchor.value = session.title === typeLabel
+      ? typeLabel
+      : `${typeLabel}: ${session.title}`;
+    anchor.font = labelFont(9, true);
+    anchor.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    anchor.border = { top: MEDIUM, bottom: MEDIUM, left: THIN, right: THIN };
+  }
+  for (const session of designationSessions) {
+    const col = dayColumn.get(session.day_of_week);
+    if (!col || !isDrawable(session)) continue;
+    const topRow = rowForMinutes(toMinutes(session.start_time));
+    const bottomRow = rowForMinutes(toMinutes(session.end_time) - 1);
+    if (bottomRow <= topRow) continue;
+
+    ws.mergeCells(topRow, col, bottomRow, col);
+    const anchor = ws.getCell(topRow, col);
+    anchor.value = session.title === session.designationName
+      ? session.designationName
+      : `${session.designationName}: ${session.title}`;
+    anchor.font = labelFont(9, true);
+    anchor.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    anchor.border = { top: MEDIUM, bottom: MEDIUM, left: THIN, right: THIN };
+  }
 
   // --- Footnote (37) and its blank spacer (38) -------------------------------
   ws.mergeCells(ROW_FOOTNOTE, 1, ROW_FOOTNOTE, COL_LAST_DAY);
@@ -364,7 +473,7 @@ export async function buildClassProgramWorkbook(
 
 
   // --- Workload tables (rows 39-61) ------------------------------------------
-  // A. Teaching Load - the numbers come straight from the live schedule.
+  // A. Teaching Load - assignment rows show the weekly budgeted hours.
   ws.getRow(ROW_WORKLOAD_HEADER).height = 16;
   const workloadHeader: Array<[col: number, text: string]> = [
     [1, 'Workload'],
@@ -382,9 +491,19 @@ export async function buildClassProgramWorkbook(
     cell.border = { bottom: MEDIUM };
   }
 
-  const lecture = workload?.lectureHrs ?? 0;
-  const lab = workload?.labHrs ?? 0;
-  const total = lecture + lab;
+  const lecture = workloadAssignments
+    ? workloadAssignments.reduce(
+        (sum, assignment) => roundHours(sum + assignment.lectureHrs),
+        0,
+      )
+    : (workload?.lectureHrs ?? 0);
+  const lab = workloadAssignments
+    ? workloadAssignments.reduce(
+        (sum, assignment) => roundHours(sum + assignment.labHrs),
+        0,
+      )
+    : (workload?.labHrs ?? 0);
+  const total = roundHours(lecture + lab);
   const numberCell = (row: number, col: number, value: number): void => {
     const cell = ws.getCell(row, col);
     cell.value = value;
@@ -404,6 +523,20 @@ export async function buildClassProgramWorkbook(
   numberCell(ROW_TEACHING_LOAD, 2, lecture);
   numberCell(ROW_TEACHING_LOAD, 3, lab);
   numberCell(ROW_TEACHING_LOAD, 4, total);
+  workloadAssignments?.forEach((assignment, index) => {
+    const row = ROW_TEACHING_LOAD + 2 + index;
+    const label = [
+      `${assignment.subjectCode} - ${assignment.subjectTitle}`,
+      assignment.sectionLabel,
+      assignment.facultyName,
+    ].filter(Boolean).join('\n');
+    rowLabel(row, label);
+    ws.getCell(row, 1).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+    ws.getRow(row).height = 30;
+    numberCell(row, 2, assignment.lectureHrs);
+    numberCell(row, 3, assignment.labHrs);
+    numberCell(row, 4, roundHours(assignment.lectureHrs + assignment.labHrs));
+  });
   const prepCell = ws.getCell(ROW_TEACHING_LOAD, 5);
   prepCell.value = 'No. of Preparations: ';
   prepCell.font = labelFont(9);
@@ -420,41 +553,73 @@ export async function buildClassProgramWorkbook(
   const overloadCell = ws.getCell(ROW_TEACHING_OVERLOAD, 5);
   overloadCell.value = 'Teaching Overload:';
   overloadCell.font = labelFont(9);
-  rowLabel(ROW_TEACHING_SUBTOTAL, 'Sub-Total', true);
-  numberCell(ROW_TEACHING_SUBTOTAL, 2, lecture);
-  numberCell(ROW_TEACHING_SUBTOTAL, 3, lab);
-  numberCell(ROW_TEACHING_SUBTOTAL, 4, total);
+  rowLabel(teachingSubtotalRow, 'Sub-Total', true);
+  numberCell(teachingSubtotalRow, 2, lecture);
+  numberCell(teachingSubtotalRow, 3, lab);
+  numberCell(teachingSubtotalRow, 4, total);
 
-  // B. Other Functions - Research / Extension / student count.
-  rowLabel(ROW_OTHER_FUNCTIONS, 'B.  Other Functions:', true);
-  const studentsCell = ws.getCell(ROW_OTHER_FUNCTIONS, 5);
+  const otherFunctionTotals = workload?.otherFunctionTotals ?? {
+    RESEARCH: 0,
+    EXTENSION: 0,
+    IMP: 0,
+    CONSULTATION: 0,
+  };
+  const otherFunctionTotal = Object.values(otherFunctionTotals).reduce(
+    (sum, hours) => roundHours(sum + hours),
+    0,
+  );
+
+  // B. Other Functions - weekly sessions and student count.
+  rowLabel(expandedRow(ROW_OTHER_FUNCTIONS), 'B.  Other Functions:', true);
+  const studentsCell = ws.getCell(expandedRow(ROW_OTHER_FUNCTIONS), 5);
   studentsCell.value = 'Total Number of Students:';
   studentsCell.font = labelFont(9, true);
-  rowLabel(ROW_RESEARCH, 'Research');
-  numberCell(ROW_RESEARCH, 2, 0);
-  numberCell(ROW_RESEARCH, 4, 0);
-  numberCell(ROW_RESEARCH, 5, workload?.totalStudents ?? 0);
-  rowLabel(ROW_EXTENSION, 'Extension');
-  numberCell(ROW_EXTENSION, 2, 0);
-  numberCell(ROW_EXTENSION, 4, 0);
-  rowLabel(ROW_OTHER_SUBTOTAL, 'Sub-Total', true);
-  numberCell(ROW_OTHER_SUBTOTAL, 2, 0);
-  numberCell(ROW_OTHER_SUBTOTAL, 4, 0);
+  const otherFunctionRows: Array<[OtherFunctionType, string, number]> = [
+    ['RESEARCH', 'Research', ROW_RESEARCH],
+    ['EXTENSION', 'Extension', ROW_EXTENSION],
+    ['IMP', 'IMP', ROW_IMP],
+    ['CONSULTATION', 'Consultation', ROW_CONSULTATION],
+  ];
+  for (const [type, label, row] of otherFunctionRows) {
+    rowLabel(expandedRow(row), label);
+    numberCell(expandedRow(row), 2, otherFunctionTotals[type]);
+    numberCell(expandedRow(row), 4, otherFunctionTotals[type]);
+  }
+  numberCell(expandedRow(ROW_RESEARCH), 5, workload?.totalStudents ?? 0);
+  rowLabel(expandedRow(ROW_OTHER_SUBTOTAL), 'Sub-Total', true);
+  numberCell(expandedRow(ROW_OTHER_SUBTOTAL), 2, otherFunctionTotal);
+  numberCell(expandedRow(ROW_OTHER_SUBTOTAL), 4, otherFunctionTotal);
 
-  // C. Designation - blank for now; the form keeps the row regardless.
-  rowLabel(ROW_DESIGNATION, 'C.  Designation', true);
-  rowLabel(ROW_DESIGNATION_SUBTOTAL, 'Sub-Total', true);
-  numberCell(ROW_DESIGNATION_SUBTOTAL, 2, 0);
-  numberCell(ROW_DESIGNATION_SUBTOTAL, 4, 0);
+  // C. Designation - individual assigned designation totals.
+  const designationHeaderRow = expandedRow(ROW_DESIGNATION);
+  rowLabel(designationHeaderRow, 'C.  Designation', true);
+  designationTotals.forEach((designation, index) => {
+    const row = designationHeaderRow + index + 1;
+    rowLabel(row, designation.name);
+    numberCell(row, 2, designation.totalHours);
+    numberCell(row, 4, designation.totalHours);
+  });
+  const designationSubtotalRow = Math.max(
+    expandedRow(ROW_DESIGNATION_SUBTOTAL),
+    designationHeaderRow + designationTotals.length + 1,
+  );
+  const designationTotal = designationTotals.reduce(
+    (sum, designation) => roundHours(sum + designation.totalHours),
+    0,
+  );
+  rowLabel(designationSubtotalRow, 'Sub-Total', true);
+  numberCell(designationSubtotalRow, 2, designationTotal);
+  numberCell(designationSubtotalRow, 4, designationTotal);
 
   // Grand Total (A+B+C).
-  ws.mergeCells(ROW_GRAND_TOTAL, 1, ROW_GRAND_TOTAL, 3);
-  const grandLabel = ws.getCell(ROW_GRAND_TOTAL, 1);
+  const grandTotalRow = expandedRow(ROW_GRAND_TOTAL);
+  ws.mergeCells(grandTotalRow, 1, grandTotalRow, 3);
+  const grandLabel = ws.getCell(grandTotalRow, 1);
   grandLabel.value = 'Grand Total (A+B+C)';
   grandLabel.font = labelFont(10, true);
   grandLabel.border = { top: MEDIUM, bottom: MEDIUM };
-  numberCell(ROW_GRAND_TOTAL, 4, total);
-  ws.getCell(ROW_GRAND_TOTAL, 4).border = { top: MEDIUM, bottom: MEDIUM };
+  numberCell(grandTotalRow, 4, roundHours(total + otherFunctionTotal + designationTotal));
+  ws.getCell(grandTotalRow, 4).border = { top: MEDIUM, bottom: MEDIUM };
 
 
 
@@ -466,13 +631,13 @@ export async function buildClassProgramWorkbook(
     [6, 'SIGNATURE'],
   ];
   for (const [col, text] of approvalHeader) {
-    const cell = ws.getCell(ROW_APPROVAL_HEADER, col);
+    const cell = ws.getCell(expandedRow(ROW_APPROVAL_HEADER), col);
     cell.value = text;
     cell.font = labelFont(9, true);
     cell.alignment = { horizontal: 'left', vertical: 'middle' };
   }
-  ws.mergeCells(ROW_APPROVAL_HEADER, 2, ROW_APPROVAL_HEADER, 3);
-  ws.mergeCells(ROW_APPROVAL_HEADER, 4, ROW_APPROVAL_HEADER, 5);
+  ws.mergeCells(expandedRow(ROW_APPROVAL_HEADER), 2, expandedRow(ROW_APPROVAL_HEADER), 3);
+  ws.mergeCells(expandedRow(ROW_APPROVAL_HEADER), 4, expandedRow(ROW_APPROVAL_HEADER), 5);
 
   const approvals: Array<[row: number, label: string, position: string]> = [
     [ROW_PREPARED, 'Prepared by:', 'Faculty'],
@@ -481,12 +646,12 @@ export async function buildClassProgramWorkbook(
     [ROW_APPROVED, 'Approved by:', 'VP-Academic Affairs'],
   ];
   for (const [row, label, position] of approvals) {
-    put(row, 1, label, labelFont(9, false));
-    put(row, 4, position, labelFont(9, false));
-    ws.mergeCells(row, 2, row, 3);
-    ws.mergeCells(row, 4, row, 5);
+    put(expandedRow(row), 1, label, labelFont(9, false));
+    put(expandedRow(row), 4, position, labelFont(9, false));
+    ws.mergeCells(expandedRow(row), 2, expandedRow(row), 3);
+    ws.mergeCells(expandedRow(row), 4, expandedRow(row), 5);
   }
-  put(ROW_EFFECTIVE, 1, 'Effective: ___________', labelFont(9, false));
+  put(expandedRow(ROW_EFFECTIVE), 1, 'Effective: ___________', labelFont(9, false));
 
   // --- School seals, one per header logo box --------------------------------
   // The seal fills A1:A7 and the second logo B1:B7; the base64 guard stops a
@@ -523,6 +688,7 @@ export async function downloadClassProgram(
     faculty = null,
     schoolYear = null,
     slots,
+    otherFunctionSessions = [],
     workload = null,
     department = DEFAULT_DEPARTMENT,
     college = DEFAULT_COLLEGE,
@@ -535,6 +701,7 @@ export async function downloadClassProgram(
     faculty,
     schoolYear,
     slots,
+    otherFunctionSessions,
     workload,
     department,
     college,
@@ -562,4 +729,3 @@ export async function exportClassProgram(
   const logo2 = opts.logo2 ?? (await loadSchoolLogo(SCHOOL_LOGO_CANDIDATES.slice(1)));
   await downloadClassProgram({ ...opts, logo, logo2 });
 }
-

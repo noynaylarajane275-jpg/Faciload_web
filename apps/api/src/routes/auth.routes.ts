@@ -86,7 +86,7 @@ authRouter.post('/auth/login', asyncHandler(async (req: Request, res: Response) 
  *
  * Creates a FACULTY-role User with `faculty_id = null` (and no faculty row).
  * The account can sign in but `requireLinkedFaculty` blocks it from every
- * data route until a Chair links it through Faculty Management. Returns the
+ * data route until a Chair or Academic Admin links it through Faculty Management. Returns the
  * same shape as login (tokens + public user) so the client can sign the user
  * straight in to the "awaiting approval" screen.
  */

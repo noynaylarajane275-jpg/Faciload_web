@@ -124,7 +124,7 @@ export const confirmOverrideSchema = z
 export type ConfirmOverrideInput = z.infer<typeof confirmOverrideSchema>;
 
 /**
- * POST /api/schedule-slots/reset — Chair-only bulk clear of placed class
+ * POST /api/schedule-slots/reset — Chair/Admin bulk clear of placed class
  * blocks for the active term. Scoped by exactly one of: all (whole term),
  * one faculty member, or one room. The caller's account password must be
  * supplied so a stray click (or an unattended Chair session) cannot wipe

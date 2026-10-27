@@ -11,6 +11,7 @@ import {
   type Section,
 } from '../lib/sections';
 import { useAuthStore } from '../store/auth.store';
+import { isManagementRole } from '../config/navigation';
 
 // Mirrors apps/api/src/validation/section.validation.ts (year 1-4, name <= 60, size 1-500).
 const sectionFormSchema = z.object({
@@ -53,7 +54,7 @@ const inputClass =
 export function SectionsPage(): JSX.Element {
   const user = useAuthStore((s) => s.user);
   const { pushToast } = useToast();
-  const canEdit = user?.role === 'CHAIR';
+  const canEdit = isManagementRole(user?.role);
 
   const [sections, setSections] = useState<Section[]>([]);
   const [status, setStatus] = useState<'loading' | 'error' | 'ready'>('loading');

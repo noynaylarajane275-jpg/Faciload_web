@@ -22,7 +22,7 @@ function parseId(req: Request): string {
 }
 
 // Reads: any authenticated role (feed section dropdowns).
-// Writes: CHAIR.
+// Writes: Chair and Academic Admin.
 sectionRouter.get(
   '/sections',
   requireAuth,
@@ -44,7 +44,7 @@ sectionRouter.get(
 sectionRouter.post(
   '/sections',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(201).json({ section: await createSection(req.body) });
   }),
@@ -53,7 +53,7 @@ sectionRouter.post(
 sectionRouter.patch(
   '/sections/:id',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(200).json({ section: await updateSection(parseId(req), req.body) });
   }),
@@ -62,7 +62,7 @@ sectionRouter.patch(
 sectionRouter.delete(
   '/sections/:id',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     await deleteSection(parseId(req));
     res.status(204).send();

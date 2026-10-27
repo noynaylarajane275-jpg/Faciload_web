@@ -7,6 +7,7 @@ import * as termRepository from '../repositories/term.repository.js';
 import * as scheduleSlotRepository from '../repositories/schedule-slot.repository.js';
 import type { ScheduleSlotWithRelations } from '../repositories/schedule-slot.repository.js';
 import * as workloadAssignmentRepository from '../repositories/workload-assignment.repository.js';
+import * as otherFunctionSessionRepository from '../repositories/other-function-session.repository.js';
 import { detectPlacementConflict, type ConflictResult } from './conflict.service.js';
 import {
   formatTimeOfDay,
@@ -213,6 +214,34 @@ export function conflictToApiError(conflict: ConflictResult): ApiError {
   return ApiError.conflict(conflict.code, conflict.message, conflict.details);
 }
 
+async function assertNoOtherFunctionConflict(
+  facultyId: string,
+  termId: string,
+  day: DayOfWeek,
+  startTime: string,
+  endTime: string,
+): Promise<void> {
+  const conflict = await otherFunctionSessionRepository.findOtherFunctionOverlap(
+    facultyId,
+    termId,
+    day,
+    startTime,
+    endTime,
+  );
+  if (conflict === 'OTHER_FUNCTION') {
+    throw ApiError.conflict(
+      'OTHER_FUNCTION_CONFLICT',
+      'This time overlaps an other-function session for this instructor.',
+    );
+  }
+  if (conflict === 'DESIGNATION') {
+    throw ApiError.conflict(
+      'DESIGNATION_SESSION_CONFLICT',
+      'This time overlaps a designation session for this instructor.',
+    );
+  }
+}
+
 export async function createScheduleSlot(rawBody: unknown): Promise<ScheduleSlotDto> {
   const input: CreateScheduleSlotInput = parseOrBadRequest(createScheduleSlotSchema, rawBody);
   const assignment = await workloadAssignmentRepository.findActiveById(input.workload_assignment_id);
@@ -229,6 +258,13 @@ export async function createScheduleSlot(rawBody: unknown): Promise<ScheduleSlot
   assertOutsideLunchBreak(input.start_time, input.end_time);
 
   await assertWithinSessionCapacity(assignment, sessionType, hours);
+  await assertNoOtherFunctionConflict(
+    assignment.faculty_id,
+    assignment.term_id,
+    input.day_of_week,
+    formatTimeOfDay(parseTimeOfDay(input.start_time)),
+    formatTimeOfDay(parseTimeOfDay(input.end_time)),
+  );
 
   const conflict = await detectPlacementConflict({
     facultyId: assignment.faculty_id,
@@ -282,6 +318,13 @@ export async function updateScheduleSlot(id: string, rawBody: unknown): Promise<
   assertOutsideLunchBreak(startTime, endTime);
 
   await assertWithinSessionCapacity(existing.workload_assignment, sessionType, hours, id);
+  await assertNoOtherFunctionConflict(
+    existing.workload_assignment.faculty_id,
+    existing.workload_assignment.term_id,
+    (input.day_of_week ?? existing.day_of_week) as DayOfWeek,
+    formatTimeOfDay(startTime),
+    formatTimeOfDay(endTime),
+  );
 
   const conflict = await detectPlacementConflict({
     facultyId: existing.workload_assignment.faculty_id,
@@ -336,6 +379,13 @@ export async function confirmOverride(
   const endTime = parseTimeOfDay(input.end_time);
   // Lunch break cannot be overridden — even the Chair override path rejects it.
   assertOutsideLunchBreak(startTime, endTime);
+  await assertNoOtherFunctionConflict(
+    assignment.faculty_id,
+    assignment.term_id,
+    input.day_of_week,
+    formatTimeOfDay(startTime),
+    formatTimeOfDay(endTime),
+  );
   const overrideHours =
     (timeOfDayToMinutes(formatTimeOfDay(endTime)) - timeOfDayToMinutes(formatTimeOfDay(startTime))) / 60;
 

@@ -118,12 +118,12 @@ export async function deleteFaculty(id: string, confirmLinkedUser = false): Prom
   await apiFetch<unknown>(`/api/faculty/${id}${qs}`, { method: 'DELETE' });
 }
 
-/** Self-registered accounts waiting for a Chair to link them (CHAIR-only). */
+/** Self-registered accounts waiting for a Chair or Academic Admin to link them. */
 export function listUnlinkedUsers(): Promise<{ users: UnlinkedUser[] }> {
   return apiFetch<{ users: UnlinkedUser[] }>('/api/faculty/unlinked-users');
 }
 
-/** Link a self-registered account to an existing faculty record (CHAIR-only). */
+/** Link a self-registered account to an existing faculty record (management-only). */
 export function linkFacultyUser(id: string, existingUserId: string): Promise<{ faculty: FacultyMember }> {
   return apiFetch<{ faculty: FacultyMember }>(`/api/faculty/${id}/link-user`, {
     method: 'POST',

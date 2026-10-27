@@ -156,12 +156,28 @@ html {
   }
 
   /* Show the class program content */
+  .app-bg {
+    display: block !important;
+    height: auto !important;
+  }
+  .app-bg > div {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
   main, .class-program-printable {
     display: block !important;
     width: 100%;
     max-width: none;
     padding: 0 !important;
     margin: 0 !important;
+  }
+  main,
+  .class-program-printable .overflow-x-auto {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
   /* Page setup: the default printed page stays landscape A4 (the Classroom

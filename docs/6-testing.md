@@ -20,7 +20,7 @@ Test:
 Test:
 
 - **Authentication** — login success/failure, token expiry/refresh, inactive account rejection
-- **Authorization** — a Faculty-role token cannot hit Chair-only endpoints (e.g. create Workload Assignment, edit Faculty); a Faculty user can only fetch their own workload/schedule, never another faculty member's
+- **Authorization** — Faculty-role tokens cannot hit management endpoints (e.g. create Workload Assignment or edit Faculty); Chair and Academic Admin tokens share management privileges; a Faculty user can only fetch their own workload/schedule, never another faculty member's
 - **CRUD** — Faculty, Subject, Room, Section, WorkloadAssignment, ScheduleSlot endpoints
 - **Validation** — rejecting duplicate subject codes, duplicate `(faculty, subject, section, term)` assignments, invalid time ranges
 - **Error responses** — consistent error shape and status codes across endpoints; no internal details (stack traces, queries) leaked

@@ -22,7 +22,7 @@ function parseId(req: Request): string {
 }
 
 // Reads: any authenticated role (the Schedule sidebar loads these for the
-// active term). Writes: CHAIR.
+// active term). Writes: Chair and Academic Admin.
 workloadAssignmentRouter.get(
   '/workload-assignments',
   requireAuth,
@@ -44,7 +44,7 @@ workloadAssignmentRouter.get(
 workloadAssignmentRouter.post(
   '/workload-assignments',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(201).json({ assignment: await createWorkloadAssignment(req.body) });
   }),
@@ -53,7 +53,7 @@ workloadAssignmentRouter.post(
 workloadAssignmentRouter.delete(
   '/workload-assignments/:id',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     await deleteWorkloadAssignment(parseId(req));
     res.status(204).send();
@@ -63,7 +63,7 @@ workloadAssignmentRouter.delete(
 workloadAssignmentRouter.patch(
   '/workload-assignments/:id',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     const updated = await updateWorkloadAssignment(parseId(req), req.body);
     res.status(200).json({ assignment: updated });

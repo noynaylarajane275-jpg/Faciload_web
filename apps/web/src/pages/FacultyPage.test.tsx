@@ -159,13 +159,13 @@ describe('FacultyManagementPage — role-based controls', () => {
     expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(2);
   });
 
-  it('hides all edit controls from the Academic Admin (view-only)', async () => {
+  it('shows the same edit controls to the Academic Admin', async () => {
     setRole('ACADEMIC_ADMIN');
     renderManagePage();
     await screen.findByText('TST-001');
-    expect(screen.queryByRole('button', { name: 'Add Faculty Member' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Faculty Member' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(2);
   });
 });
 
@@ -404,5 +404,4 @@ describe('FacultyPage — workload linkage (read-only)', () => {
     expect(await screen.findByRole('dialog')).toHaveTextContent('No workload assignments yet.');
   });
 });
-
 

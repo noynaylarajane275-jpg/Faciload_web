@@ -15,7 +15,7 @@ function parseId(req: Request): string {
   return parsed.data;
 }
 
-// Reads: any authenticated role. Writes: CHAIR (requirements.md Section 3).
+// Reads: any authenticated role. Writes: Chair and Academic Admin.
 roomRouter.get(
   '/rooms',
   requireAuth,
@@ -37,7 +37,7 @@ roomRouter.get(
 roomRouter.post(
   '/rooms',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(201).json({ room: await createRoom(req.body) });
   }),
@@ -48,7 +48,7 @@ roomRouter.post(
 roomRouter.patch(
   '/rooms/:id',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(200).json({ room: await updateRoom(parseId(req), req.body) });
   }),

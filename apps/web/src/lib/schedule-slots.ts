@@ -23,7 +23,7 @@ export interface ResetScheduleResult {
 }
 
 /**
- * Bulk-clear placed blocks for the term (Chair-only). Assignments survive —
+ * Bulk-clear placed blocks for the term (Chair/Admin-only). Assignments survive —
  * everything returns to "Unassigned classes". The caller's account password
  * travels in the body because DELETE cannot carry one safely and this call
  * is destructive by design.

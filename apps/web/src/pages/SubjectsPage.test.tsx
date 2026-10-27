@@ -151,13 +151,13 @@ describe('SubjectsPage — role-based controls', () => {
     expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(2);
   });
 
-  it('hides all edit controls from the Academic Admin (view-only)', async () => {
+  it('shows the same edit controls to the Academic Admin', async () => {
     setRole('ACADEMIC_ADMIN');
     renderPage();
     await screen.findByText('IE 105');
-    expect(screen.queryByRole('button', { name: 'Add Subject' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Subject' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(2);
   });
 });
 

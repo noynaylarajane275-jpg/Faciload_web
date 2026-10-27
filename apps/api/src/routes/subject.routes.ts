@@ -21,7 +21,7 @@ function parseId(req: Request): string {
   return parsed.data;
 }
 
-// Reads: any authenticated role (requirements.md Section 3). Writes: CHAIR.
+// Reads: any authenticated role. Writes: Chair and Academic Admin.
 // All handlers are async-wrapped so rejections hit the central error handler.
 subjectRouter.get(
   '/subjects',
@@ -44,7 +44,7 @@ subjectRouter.get(
 subjectRouter.post(
   '/subjects',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(201).json({ subject: await createSubject(req.body) });
   }),
@@ -53,7 +53,7 @@ subjectRouter.post(
 subjectRouter.patch(
   '/subjects/:id',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(200).json({ subject: await updateSubject(parseId(req), req.body) });
   }),
@@ -62,7 +62,7 @@ subjectRouter.patch(
 subjectRouter.delete(
   '/subjects/:id',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     await deleteSubject(parseId(req));
     res.status(204).send();

@@ -212,7 +212,7 @@ export async function loginRequest(email: string, password: string): Promise<Log
 /**
  * Public self-registration. Creates a FACULTY-role user with facultyId null —
  * the account can sign in but sees the "awaiting approval" screen until a
- * Chair links it through Faculty Management. Same response shape as login so
+ * a manager links it through Faculty Management. Same response shape as login so
  * the caller can sign the user straight in.
  */
 export async function registerRequest(email: string, password: string, confirmPassword: string): Promise<LoginResponse> {

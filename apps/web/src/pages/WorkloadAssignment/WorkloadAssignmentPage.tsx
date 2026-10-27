@@ -13,6 +13,7 @@ import { listFaculty, type FacultyMember } from '../../lib/faculty';
 import { listSections, type Section } from '../../lib/sections';
 import { listSubjects, type Subject } from '../../lib/subjects';
 import { useAuthStore } from '../../store/auth.store';
+import { isManagementRole } from '../../config/navigation';
 import { useTermStore } from '../../store/term.store';
 import { AssignmentsTable } from './AssignmentsTable';
 import { AssignmentForm } from './AssignmentForm';
@@ -22,7 +23,7 @@ import { createSchema, editSchema, EMPTY_FORM, PAGE_SIZE, SEARCH_DEBOUNCE_MS, ty
 export function WorkloadAssignmentPage(): JSX.Element {
   const user = useAuthStore((s) => s.user);
   const { pushToast } = useToast();
-  const canEdit = user?.role === 'CHAIR';
+  const canEdit = isManagementRole(user?.role);
 
   const terms = useTermStore((s) => s.terms);
   const selectedTermId = useTermStore((s) => s.selectedTermId);

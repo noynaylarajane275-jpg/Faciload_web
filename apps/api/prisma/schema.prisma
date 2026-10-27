@@ -38,38 +38,40 @@ model User {
 
 // Faculty Information Model
 model Faculty {
-  id                String           @id @default(uuid())
-  employee_no       String           @unique
-  first_name        String
-  last_name         String
-  rank              String?
-  employment_status String           @default("FULL_TIME") // FULL_TIME | PART_TIME
-  max_units         Int              @default(24)
+  id                      String                 @id @default(uuid())
+  employee_no             String                 @unique
+  first_name              String
+  last_name               String
+  rank                    String?
+  employment_status       String                 @default("FULL_TIME") // FULL_TIME | PART_TIME
+  max_units               Int                    @default(24)
   /// Mirror of the linked user's avatar (denormalized so faculty lists on the
   /// dashboard/load panels can render the photo without a user join).
-  avatar_url        String?
-  created_at        DateTime         @default(now())
-  updated_at        DateTime         @default(now()) @updatedAt
-  deleted_at        DateTime?
-  user              User?
-  assignments       WorkloadAssignment[]
+  avatar_url              String?
+  created_at              DateTime               @default(now())
+  updated_at              DateTime               @default(now()) @updatedAt
+  deleted_at              DateTime?
+  user                    User?
+  assignments             WorkloadAssignment[]
+  other_function_sessions OtherFunctionSession[]
+  designations            FacultyDesignation[]
 
   @@map("faculty")
 }
 
 // Subjects Model
 model Subject {
-  id            String    @id @default(uuid())
-  code          String    @unique
+  id            String               @id @default(uuid())
+  code          String               @unique
   title         String
   // Float instead of Decimal: SQLite has no arbitrary-precision decimal type.
   // IEEE-754 double precision is a fine tradeoff for department-scale
   // unit/hour counts (values stay exact for the small 2dp ranges used here).
   units         Float
-  lecture_hours Float     @default(0)
-  lab_hours     Float     @default(0)
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @default(now()) @updatedAt
+  lecture_hours Float                @default(0)
+  lab_hours     Float                @default(0)
+  created_at    DateTime             @default(now())
+  updated_at    DateTime             @default(now()) @updatedAt
   deleted_at    DateTime?
   assignments   WorkloadAssignment[]
 
@@ -78,13 +80,13 @@ model Subject {
 
 // Sections Model
 model Section {
-  id          String   @id @default(uuid())
+  id          String               @id @default(uuid())
   year_level  Int
   name        String
   // Added by Adrian: Student Size for each Section
   size        Int
-  created_at  DateTime @default(now())
-  updated_at  DateTime @default(now()) @updatedAt
+  created_at  DateTime             @default(now())
+  updated_at  DateTime             @default(now()) @updatedAt
   assignments WorkloadAssignment[]
 
   @@unique([year_level, name])
@@ -92,23 +94,25 @@ model Section {
 }
 
 model Room {
-  id                   String   @id @default(uuid())
-  name                 String   @unique
-  is_under_maintenance Boolean  @default(false)
-  created_at           DateTime @default(now())
-  updated_at           DateTime @default(now()) @updatedAt
+  id                   String         @id @default(uuid())
+  name                 String         @unique
+  is_under_maintenance Boolean        @default(false)
+  created_at           DateTime       @default(now())
+  updated_at           DateTime       @default(now()) @updatedAt
   slots                ScheduleSlot[]
 
   @@map("rooms")
 }
 
 model AcademicTerm {
-  id          String   @id @default(uuid())
-  school_year String
-  semester    String   // FIRST | SECOND | SUMMER
-  is_active   Boolean  @default(false)
-  created_at  DateTime @default(now())
-  assignments WorkloadAssignment[]
+  id                      String                 @id @default(uuid())
+  school_year             String
+  semester                String // FIRST | SECOND | SUMMER
+  is_active               Boolean                @default(false)
+  created_at              DateTime               @default(now())
+  assignments             WorkloadAssignment[]
+  other_function_sessions OtherFunctionSession[]
+  designations            FacultyDesignation[]
 
   @@unique([school_year, semester])
   @@map("academic_terms")
@@ -124,7 +128,7 @@ model WorkloadAssignment {
   section    Section        @relation(fields: [section_id], references: [id], onDelete: Restrict)
   term_id    String
   term       AcademicTerm   @relation(fields: [term_id], references: [id], onDelete: Restrict)
-  color      String?        // #RRGGBB hex (was @db.VarChar(7))
+  color      String? // #RRGGBB hex (was @db.VarChar(7))
   created_at DateTime       @default(now())
   updated_at DateTime       @default(now()) @updatedAt
   deleted_at DateTime?
@@ -142,8 +146,8 @@ model ScheduleSlot {
   workload_assignment    WorkloadAssignment @relation(fields: [workload_assignment_id], references: [id], onDelete: Cascade)
   room_id                String?
   room                   Room?              @relation(fields: [room_id], references: [id], onDelete: Restrict)
-  session_type           String             // LECTURE | LAB
-  day_of_week            String             // MON | TUE | WED | THU | FRI | SAT
+  session_type           String // LECTURE | LAB
+  day_of_week            String // MON | TUE | WED | THU | FRI | SAT
   // Stored as canonical "HH:MM" 24-hour strings — the same format the API
   // boundary sends/receives (SQLite has no native TIME type; zero-padded
   // strings also sort and compare correctly for overlap checks).
@@ -155,4 +159,53 @@ model ScheduleSlot {
   @@index([room_id, day_of_week])
   @@index([workload_assignment_id, day_of_week])
   @@map("schedule_slots")
+}
+
+model OtherFunctionSession {
+  id            String       @id @default(uuid())
+  faculty_id    String
+  faculty       Faculty      @relation(fields: [faculty_id], references: [id], onDelete: Cascade)
+  term_id       String
+  term          AcademicTerm @relation(fields: [term_id], references: [id], onDelete: Cascade)
+  function_type String // RESEARCH | EXTENSION | IMP | CONSULTATION
+  title         String
+  day_of_week   String // MON | TUE | WED | THU | FRI
+  start_time    String // Canonical "HH:MM"
+  end_time      String // Canonical "HH:MM"
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @default(now()) @updatedAt
+
+  @@index([faculty_id, term_id, day_of_week])
+  @@map("other_function_sessions")
+}
+
+model FacultyDesignation {
+  id            String                  @id @default(uuid())
+  faculty_id    String
+  faculty       Faculty                 @relation(fields: [faculty_id], references: [id], onDelete: Cascade)
+  term_id       String
+  term          AcademicTerm            @relation(fields: [term_id], references: [id], onDelete: Cascade)
+  name          String
+  sessions      DesignationSession[]
+  created_at    DateTime                @default(now())
+  updated_at    DateTime                @default(now()) @updatedAt
+
+  @@unique([faculty_id, term_id, name])
+  @@index([faculty_id, term_id])
+  @@map("faculty_designations")
+}
+
+model DesignationSession {
+  id             String             @id @default(uuid())
+  designation_id String
+  designation    FacultyDesignation @relation(fields: [designation_id], references: [id], onDelete: Cascade)
+  title          String
+  day_of_week    String // MON | TUE | WED | THU | FRI
+  start_time     String // Canonical "HH:MM"
+  end_time       String // Canonical "HH:MM"
+  created_at     DateTime           @default(now())
+  updated_at     DateTime           @default(now()) @updatedAt
+
+  @@index([designation_id, day_of_week])
+  @@map("designation_sessions")
 }

@@ -21,7 +21,7 @@ function parseId(req: Request): string {
 }
 
 // Reads: any authenticated role (header Term selector, Schedule page).
-// Writes: CHAIR.
+// Writes: Chair and Academic Admin.
 termRouter.get(
   '/terms',
   requireAuth,
@@ -44,7 +44,7 @@ termRouter.get(
 termRouter.post(
   '/terms',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(201).json({ term: await createTerm(req.body) });
   }),
@@ -54,7 +54,7 @@ termRouter.post(
 termRouter.patch(
   '/terms/:id',
   requireAuth,
-  requireRole('CHAIR'),
+  requireRole('CHAIR', 'ACADEMIC_ADMIN'),
   asyncHandler(async (req, res) => {
     res.status(200).json({ term: await updateTerm(parseId(req), req.body) });
   }),

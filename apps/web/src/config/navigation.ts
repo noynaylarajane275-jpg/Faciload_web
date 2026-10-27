@@ -12,6 +12,10 @@ export interface NavItem {
 export const ALL_ROLES: AuthRole[] = ['CHAIR', 'FACULTY', 'ACADEMIC_ADMIN'];
 export const MANAGEMENT_ROLES: AuthRole[] = ['CHAIR', 'ACADEMIC_ADMIN'];
 
+export function isManagementRole(role: AuthRole | null | undefined): boolean {
+  return role !== undefined && role !== null && MANAGEMENT_ROLES.includes(role);
+}
+
 /**
  * Single source of truth for authenticated sidebar navigation
  * (ui-ux.md §2.2/§3, requirements.md §3).

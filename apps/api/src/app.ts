@@ -13,6 +13,8 @@ import { sectionRouter } from './routes/section.routes.js';
 import { termRouter } from './routes/term.routes.js';
 import { workloadAssignmentRouter } from './routes/workload-assignment.routes.js';
 import { scheduleSlotRouter } from './routes/schedule-slot.routes.js';
+import { otherFunctionSessionRouter } from './routes/other-function-session.routes.js';
+import { facultyDesignationRouter } from './routes/faculty-designation.routes.js';
 import { scheduleViewRouter } from './routes/schedule-view.routes.js';
 import { dashboardRouter } from './routes/dashboard.routes.js';
 import { avatarDir } from './services/avatar.service.js';
@@ -45,6 +47,8 @@ export function createApp(): express.Express {
   app.use('/api', termRouter);
   app.use('/api', workloadAssignmentRouter);
   app.use('/api', scheduleSlotRouter);
+  app.use('/api', otherFunctionSessionRouter);
+  app.use('/api', facultyDesignationRouter);
   app.use('/api', scheduleViewRouter);
   app.use('/api', dashboardRouter);
 
@@ -102,4 +106,3 @@ export function createApp(): express.Express {
 export function ensureUploadDirs(): void {
   fs.mkdirSync(avatarDir(), { recursive: true });
 }
-

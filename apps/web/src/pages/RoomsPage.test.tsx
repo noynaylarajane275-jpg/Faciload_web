@@ -191,16 +191,13 @@ describe('RoomsPage — maintenance toggle', () => {
 });
 
 describe('RoomsPage — role gating', () => {
-  it('hides create/rename and disables the switch for Academic Admin', async () => {
+  it('shows room management controls to the Academic Admin', async () => {
     setRole('ACADEMIC_ADMIN');
     renderPage();
     expect(await screen.findByText('IE Lab 1')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '+ Add room' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ Add room' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Rename' }).length).toBeGreaterThan(0);
     const sw = screen.getByRole('switch', { name: 'Mark IE Lab 1 under maintenance' });
-    expect(sw).toBeDisabled();
-    fireEvent.click(sw);
-    expect(updateRoomMock).not.toHaveBeenCalled();
+    expect(sw).toBeEnabled();
   });
 });
-

@@ -57,7 +57,7 @@ export function requireRole(...allowedRoles: Role[]): (req: Request, res: Respon
  *
  * Self-registered accounts are created with `faculty_id = null` on purpose:
  * they may sign in (so they can see the "awaiting approval" screen) but must
- * not read any department/faculty data until a Chair links them through
+ * not read any department/faculty data until a Chair or Academic Admin links them through
  * Faculty Management. CHAIR / ACADEMIC_ADMIN are never gated by this check.
  */
 export function requireLinkedFaculty(req: Request, res: Response, next: NextFunction): void {
